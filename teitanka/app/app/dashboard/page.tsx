@@ -89,6 +89,24 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        <Link
+          href="/test-call"
+          className="flex items-center gap-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl p-5 mb-8 hover:from-green-700 hover:to-emerald-700 transition shadow-lg"
+        >
+          <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div>
+            <div className="font-bold text-lg">Video Call Test Room</div>
+            <div className="text-green-100 text-sm">Click to test video calling with Daily.co</div>
+          </div>
+          <svg className="w-6 h-6 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
+
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="font-semibold text-gray-900">
