@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd teitanka/app && npm install && npm run build",
+  "outputDirectory": "teitanka/app/.next",
+  "installCommand": "cd teitanka/app && npm install",
+  "framework": "nextjs",
+  "rootDirectory": "teitanka/app"
+}
