@@ -47,6 +47,12 @@ export default function Home() {
             >
               Browse Teachers
             </Link>
+            <Link
+              href="/test-call"
+              className="px-8 py-4 bg-green-600 text-white rounded-xl font-semibold text-lg hover:bg-green-700 transition shadow-lg shadow-green-200"
+            >
+              Video Call Test
+            </Link>
           </div>
         </div>
 
