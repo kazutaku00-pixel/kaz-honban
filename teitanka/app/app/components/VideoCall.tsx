@@ -178,6 +178,14 @@ export default function VideoCall({ roomId, userName, initialRoomUrl }: VideoCal
     setIsScreenSharing(!isScreenSharing);
   };
 
+  const hasAutoJoined = useRef(false);
+  useEffect(() => {
+    if (initialRoomUrl && !hasAutoJoined.current) {
+      hasAutoJoined.current = true;
+      joinCall();
+    }
+  }, [initialRoomUrl]);
+
   useEffect(() => {
     return () => {
       if (callRef.current) {

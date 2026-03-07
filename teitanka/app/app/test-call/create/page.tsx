@@ -5,9 +5,37 @@ import VideoCall from '../../components/VideoCall';
 
 export default function CreateMeetingPage() {
   const [name, setName] = useState('');
-  const [started, setStarted] = useState(false);
+  const [roomUrl, setRoomUrl] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState('');
 
-  if (!started) {
+  const handleCreate = async () => {
+    if (!name.trim()) return;
+    setCreating(true);
+    setError('');
+    try {
+      const res = await fetch('/api/daily', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomName: `room-${Date.now()}` }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error?.info || 'Failed to create room');
+      }
+      const data = await res.json();
+      setRoomUrl(data.url);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to create room');
+      setCreating(false);
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(roomUrl);
+  };
+
+  if (!roomUrl) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
         <div className="bg-gray-800 rounded-2xl p-8 max-w-md w-full">
@@ -27,12 +55,13 @@ export default function CreateMeetingPage() {
             placeholder="Your name"
             className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 outline-none mb-4"
           />
+          {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
           <button
-            onClick={() => name.trim() && setStarted(true)}
-            disabled={!name.trim()}
+            onClick={handleCreate}
+            disabled={!name.trim() || creating}
             className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Create & Join
+            {creating ? 'Creating room...' : 'Create Meeting'}
           </button>
         </div>
       </div>
@@ -45,8 +74,21 @@ export default function CreateMeetingPage() {
         <h1 className="text-white font-semibold">Meeting (Host)</h1>
         <span className="text-gray-400 text-sm">{name}</span>
       </div>
+      {/* Share URL Banner */}
+      <div className="bg-green-900/50 border-b border-green-700 px-6 py-3 flex items-center gap-3 flex-wrap">
+        <span className="text-green-300 text-sm font-medium">Share this link:</span>
+        <code className="bg-black/30 text-green-200 px-3 py-1 rounded text-sm select-all flex-1 min-w-0 truncate">
+          {roomUrl}
+        </code>
+        <button
+          onClick={handleCopy}
+          className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-500 transition flex-shrink-0"
+        >
+          Copy
+        </button>
+      </div>
       <div className="flex-1 flex">
-        <VideoCall roomId="test-room" userName={name} />
+        <VideoCall roomId="host" userName={name} initialRoomUrl={roomUrl} />
       </div>
     </div>
   );
