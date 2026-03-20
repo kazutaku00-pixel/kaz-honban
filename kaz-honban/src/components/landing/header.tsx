@@ -55,6 +55,12 @@ export function Header() {
           {/* CTA + mobile toggle */}
           <div className="flex items-center gap-3">
             <a
+              href="/login"
+              className="hidden sm:inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+            >
+              Log in
+            </a>
+            <a
               href="/signup"
               className={cn(
                 "hidden sm:inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold",
@@ -63,7 +69,7 @@ export function Header() {
                 "hover:shadow-[0_0_30px_rgba(255,107,74,0.5)]"
               )}
             >
-              Get Started Free
+              Start Learning
             </a>
             <button
               className="md:hidden p-2 text-text-secondary hover:text-text-primary transition-colors"
@@ -99,11 +105,18 @@ export function Header() {
             ))}
             <div className="border-t border-border my-2" />
             <a
+              href="/login"
+              className="px-4 py-3 text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 rounded-lg transition-colors text-center"
+              onClick={() => setMenuOpen(false)}
+            >
+              Log in
+            </a>
+            <a
               href="/signup"
               className="px-4 py-3 text-sm font-semibold text-accent hover:bg-accent-subtle rounded-lg transition-colors text-center"
               onClick={() => setMenuOpen(false)}
             >
-              Get Started Free
+              Start Learning
             </a>
           </div>
         </div>

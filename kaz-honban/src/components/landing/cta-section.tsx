@@ -39,14 +39,14 @@ export function CTASection() {
               "hover:scale-[1.02] active:scale-[0.98]"
             )}
           >
-            Find Your Teacher Now
+            Start Learning
             <ArrowRight
               size={18}
               className="transition-transform group-hover:translate-x-1"
             />
           </a>
-          <p className="text-xs text-text-muted">Free to sign up. No credit card required.</p>
         </div>
+        <p className="mt-4 text-xs text-text-muted">Free to sign up. No credit card required.</p>
       </div>
     </section>
   );

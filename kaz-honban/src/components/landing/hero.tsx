@@ -91,7 +91,7 @@ export function Hero() {
             style={{ animationDelay: "0.5s" }}
           >
             <a
-              href={hero.cta.href}
+              href="/signup"
               className={cn(
                 "group flex items-center justify-center gap-2 w-full sm:w-auto",
                 "px-8 py-4 rounded-2xl text-base font-semibold",
@@ -101,14 +101,14 @@ export function Hero() {
                 "hover:scale-[1.02] active:scale-[0.98]"
               )}
             >
-              {hero.cta.text}
+              Start Learning
               <ArrowRight
                 size={18}
                 className="transition-transform group-hover:translate-x-1"
               />
             </a>
             <a
-              href={hero.secondaryCta.href}
+              href="#how-it-works"
               className={cn(
                 "flex items-center justify-center w-full sm:w-auto",
                 "px-8 py-4 rounded-2xl text-base font-medium",
@@ -116,7 +116,7 @@ export function Hero() {
                 "hover:bg-white/5 hover:border-border-hover transition-all duration-300"
               )}
             >
-              {hero.secondaryCta.text}
+              How It Works
             </a>
           </div>
 

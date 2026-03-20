@@ -120,7 +120,7 @@ export function Teachers() {
         {/* View all link */}
         <div className="reveal mt-10 text-center">
           <a
-            href="/teachers"
+            href="/signup"
             className={cn(
               "inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium",
               "border border-border text-text-secondary hover:text-text-primary",

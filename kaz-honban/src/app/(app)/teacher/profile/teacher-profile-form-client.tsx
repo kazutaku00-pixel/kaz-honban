@@ -1,0 +1,427 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Save,
+  Loader2,
+  CheckCircle,
+  Send,
+  User,
+  DollarSign,
+  BookOpen,
+  Languages,
+  BarChart,
+  Video,
+  Award,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
+import { createClient } from "@/lib/supabase/client";
+import { CATEGORIES, LANGUAGES, LEVELS } from "@/lib/validations";
+import type { TeacherApprovalStatus } from "@/types/database";
+
+interface TeacherProfileFormClientProps {
+  existingProfile: {
+    headline: string;
+    bio: string;
+    hourly_rate: number;
+    categories: string[];
+    languages: string[];
+    levels: string[];
+    lesson_duration_options: number[];
+    teaching_style: string;
+    certifications: string;
+    intro_video_url: string;
+    trial_enabled: boolean;
+    trial_price: number;
+    approval_status: TeacherApprovalStatus;
+  } | null;
+}
+
+export function TeacherProfileFormClient({
+  existingProfile,
+}: TeacherProfileFormClientProps) {
+  const router = useRouter();
+  const { t } = useI18n();
+  const [headline, setHeadline] = useState(existingProfile?.headline ?? "");
+  const [bio, setBio] = useState(existingProfile?.bio ?? "");
+  const [hourlyRate, setHourlyRate] = useState(existingProfile?.hourly_rate ?? 15);
+  const [categories, setCategories] = useState<string[]>(existingProfile?.categories ?? []);
+  const [languages, setLanguages] = useState<string[]>(existingProfile?.languages ?? []);
+  const [levels, setLevels] = useState<string[]>(existingProfile?.levels ?? []);
+  const [durationOptions, setDurationOptions] = useState<number[]>(
+    existingProfile?.lesson_duration_options ?? [25]
+  );
+  const [teachingStyle, setTeachingStyle] = useState(existingProfile?.teaching_style ?? "");
+  const [certifications, setCertifications] = useState(existingProfile?.certifications ?? "");
+  const [introVideoUrl, setIntroVideoUrl] = useState(existingProfile?.intro_video_url ?? "");
+  const [trialEnabled, setTrialEnabled] = useState(existingProfile?.trial_enabled ?? false);
+  const [trialPrice, setTrialPrice] = useState(existingProfile?.trial_price ?? 0);
+  const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function toggleArrayItem(arr: string[], item: string, setter: (v: string[]) => void) {
+    setter(arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item]);
+  }
+
+  function toggleDuration(d: number) {
+    setDurationOptions(
+      durationOptions.includes(d)
+        ? durationOptions.filter((x) => x !== d)
+        : [...durationOptions, d]
+    );
+  }
+
+  async function handleSave(submitForReview = false) {
+    if (submitForReview) {
+      setSubmitting(true);
+    } else {
+      setSaving(true);
+    }
+    setError(null);
+    setSaved(false);
+
+    try {
+      const supabase = createClient();
+      const userId = (await supabase.auth.getUser()).data.user!.id;
+
+      const payload = {
+        headline: headline.trim(),
+        bio: bio.trim(),
+        hourly_rate: hourlyRate,
+        categories,
+        languages,
+        levels,
+        lesson_duration_options: durationOptions,
+        teaching_style: teachingStyle.trim() || null,
+        certifications: certifications.trim() || null,
+        intro_video_url: introVideoUrl.trim() || null,
+        trial_enabled: trialEnabled,
+        trial_price: trialPrice,
+        ...(submitForReview ? { approval_status: "submitted" } : {}),
+      } as never;
+
+      const { error: updateError } = await supabase
+        .from("teacher_profiles")
+        .update(payload)
+        .eq("user_id", userId);
+
+      if (updateError) {
+        setError("Failed to save profile");
+        return;
+      }
+
+      setSaved(true);
+      router.refresh();
+    } catch {
+      setError("Failed to save profile");
+    } finally {
+      setSaving(false);
+      setSubmitting(false);
+    }
+  }
+
+  const approvalStatus = existingProfile?.approval_status ?? "draft";
+
+  return (
+    <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => router.back()}
+          className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition"
+        >
+          <ArrowLeft className="w-5 h-5 text-text-primary" />
+        </button>
+        <div>
+          <h1 className="text-xl font-bold text-text-primary font-[family-name:var(--font-display)]">
+            {t("profile.title")}
+          </h1>
+          <p className="text-xs text-text-muted capitalize">{t("profile.status")}: {approvalStatus}</p>
+        </div>
+      </div>
+
+      {/* Avatar section */}
+      <div className="bg-bg-secondary rounded-2xl border border-border p-6 space-y-3">
+        <div className="flex items-center gap-2 text-text-muted">
+          <User size={16} />
+          <h2 className="text-sm font-semibold uppercase tracking-wider">{t("profile.avatar")}</h2>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-gold to-yellow-600 flex items-center justify-center text-white font-bold text-2xl">
+            {(headline || "T")[0].toUpperCase()}
+          </div>
+          <button
+            type="button"
+            disabled
+            className="px-4 py-2 rounded-xl bg-white/5 text-text-muted text-sm font-medium cursor-not-allowed"
+          >
+            {t("profile.uploadSoon")}
+          </button>
+        </div>
+      </div>
+
+      {/* Basic Info */}
+      <div className="bg-bg-secondary rounded-2xl border border-border p-6 space-y-4">
+        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">{t("profile.basicInfo")}</h2>
+        <div>
+          <label className="text-sm text-text-secondary mb-1 block">{t("profile.headline")}</label>
+          <input
+            type="text"
+            value={headline}
+            onChange={(e) => setHeadline(e.target.value)}
+            maxLength={80}
+            placeholder={t("profile.headlinePlaceholder")}
+            className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-gold/50 transition"
+          />
+        </div>
+        <div>
+          <label className="text-sm text-text-secondary mb-1 block">{t("profile.bio")}</label>
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            maxLength={1000}
+            rows={6}
+            placeholder={t("profile.bioPlaceholder")}
+            className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary placeholder:text-text-muted resize-none focus:outline-none focus:border-gold/50 transition"
+          />
+          <p className="text-xs text-text-muted text-right mt-1">{bio.length}/1000</p>
+        </div>
+      </div>
+
+      {/* Categories */}
+      <div className="bg-bg-secondary rounded-2xl border border-border p-6 space-y-3">
+        <div className="flex items-center gap-2 text-text-muted">
+          <BookOpen size={16} />
+          <h2 className="text-sm font-semibold uppercase tracking-wider">{t("profile.categories")}</h2>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.value}
+              type="button"
+              onClick={() => toggleArrayItem(categories, cat.value, setCategories)}
+              className={cn(
+                "px-3 py-2 rounded-xl text-sm font-medium transition",
+                categories.includes(cat.value)
+                  ? "bg-gold text-white"
+                  : "bg-white/5 text-text-secondary hover:bg-white/10"
+              )}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Languages */}
+      <div className="bg-bg-secondary rounded-2xl border border-border p-6 space-y-3">
+        <div className="flex items-center gap-2 text-text-muted">
+          <Languages size={16} />
+          <h2 className="text-sm font-semibold uppercase tracking-wider">{t("profile.languages")}</h2>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {LANGUAGES.map((lang) => (
+            <button
+              key={lang.value}
+              type="button"
+              onClick={() => toggleArrayItem(languages, lang.value, setLanguages)}
+              className={cn(
+                "px-3 py-2 rounded-xl text-sm font-medium transition",
+                languages.includes(lang.value)
+                  ? "bg-gold text-white"
+                  : "bg-white/5 text-text-secondary hover:bg-white/10"
+              )}
+            >
+              {lang.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Levels */}
+      <div className="bg-bg-secondary rounded-2xl border border-border p-6 space-y-3">
+        <div className="flex items-center gap-2 text-text-muted">
+          <BarChart size={16} />
+          <h2 className="text-sm font-semibold uppercase tracking-wider">{t("profile.levels")}</h2>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {LEVELS.map((level) => (
+            <button
+              key={level.value}
+              type="button"
+              onClick={() => toggleArrayItem(levels, level.value, setLevels)}
+              className={cn(
+                "px-3 py-2 rounded-xl text-sm font-medium transition",
+                levels.includes(level.value)
+                  ? "bg-gold text-white"
+                  : "bg-white/5 text-text-secondary hover:bg-white/10"
+              )}
+            >
+              {level.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Pricing */}
+      <div className="bg-bg-secondary rounded-2xl border border-border p-6 space-y-4">
+        <div className="flex items-center gap-2 text-text-muted">
+          <DollarSign size={16} />
+          <h2 className="text-sm font-semibold uppercase tracking-wider">{t("profile.pricing")}</h2>
+        </div>
+        <div>
+          <label className="text-sm text-text-secondary mb-1 block">{t("profile.hourlyRate")}</label>
+          <input
+            type="number"
+            min={5}
+            max={100}
+            value={hourlyRate}
+            onChange={(e) => setHourlyRate(Number(e.target.value))}
+            className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-gold/50 transition"
+          />
+        </div>
+        <div>
+          <label className="text-sm text-text-secondary mb-1 block">{t("profile.durations")}</label>
+          <div className="flex gap-3">
+            {[25, 50].map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => toggleDuration(d)}
+                className={cn(
+                  "flex-1 py-3 rounded-xl font-medium text-sm transition",
+                  durationOptions.includes(d)
+                    ? "bg-gold text-white"
+                    : "bg-white/5 text-text-secondary hover:bg-white/10"
+                )}
+              >
+                {d} min
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center justify-between">
+          <label className="text-sm text-text-secondary">{t("profile.trial")}</label>
+          <button
+            type="button"
+            onClick={() => setTrialEnabled(!trialEnabled)}
+            className={cn(
+              "w-12 h-6 rounded-full transition-colors relative",
+              trialEnabled ? "bg-gold" : "bg-white/10"
+            )}
+          >
+            <div
+              className={cn(
+                "w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform",
+                trialEnabled ? "translate-x-6" : "translate-x-0.5"
+              )}
+            />
+          </button>
+        </div>
+        {trialEnabled && (
+          <div>
+            <label className="text-sm text-text-secondary mb-1 block">{t("profile.trialPrice")}</label>
+            <input
+              type="number"
+              min={0}
+              max={50}
+              value={trialPrice}
+              onChange={(e) => setTrialPrice(Number(e.target.value))}
+              className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-gold/50 transition"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Additional Details */}
+      <div className="bg-bg-secondary rounded-2xl border border-border p-6 space-y-4">
+        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">{t("profile.additional")}</h2>
+        <div>
+          <label className="text-sm text-text-secondary mb-1 flex items-center gap-1">
+            <Award size={14} />
+            {t("profile.certifications")}
+          </label>
+          <textarea
+            value={certifications}
+            onChange={(e) => setCertifications(e.target.value)}
+            rows={2}
+            placeholder={t("profile.certPlaceholder")}
+            className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary placeholder:text-text-muted resize-none focus:outline-none focus:border-gold/50 transition"
+          />
+        </div>
+        <div>
+          <label className="text-sm text-text-secondary mb-1 block">{t("profile.teachingStyle")}</label>
+          <textarea
+            value={teachingStyle}
+            onChange={(e) => setTeachingStyle(e.target.value)}
+            rows={2}
+            placeholder={t("profile.stylePlaceholder")}
+            className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary placeholder:text-text-muted resize-none focus:outline-none focus:border-gold/50 transition"
+          />
+        </div>
+        <div>
+          <label className="text-sm text-text-secondary mb-1 flex items-center gap-1">
+            <Video size={14} />
+            {t("profile.introVideo")}
+          </label>
+          <input
+            type="url"
+            value={introVideoUrl}
+            onChange={(e) => setIntroVideoUrl(e.target.value)}
+            placeholder="https://youtube.com/..."
+            className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-gold/50 transition"
+          />
+        </div>
+      </div>
+
+      {/* Error / Success */}
+      {error && (
+        <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-red-400 text-sm">
+          {error}
+        </div>
+      )}
+      {saved && (
+        <div className="rounded-xl bg-green-500/10 border border-green-500/20 p-3 text-green-400 text-sm flex items-center gap-2">
+          <CheckCircle size={16} />
+          {t("profile.saved")}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="space-y-3">
+        <button
+          onClick={() => handleSave(false)}
+          disabled={saving}
+          className={cn(
+            "w-full flex items-center justify-center gap-2 py-3 rounded-xl",
+            "bg-gold text-white font-semibold text-sm",
+            "hover:bg-gold/90 transition disabled:opacity-50"
+          )}
+        >
+          {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+          {t("profile.saveDraft")}
+        </button>
+
+        {(approvalStatus === "draft" || approvalStatus === "rejected") && (
+          <button
+            onClick={() => handleSave(true)}
+            disabled={submitting || bio.length < 200 || categories.length === 0}
+            className={cn(
+              "w-full flex items-center justify-center gap-2 py-3 rounded-xl",
+              "bg-gold/20 text-gold font-semibold text-sm",
+              "hover:bg-gold/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            )}
+          >
+            {submitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+            {t("profile.submitReview")}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}

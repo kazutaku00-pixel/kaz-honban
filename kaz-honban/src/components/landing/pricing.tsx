@@ -73,7 +73,7 @@ export function Pricing() {
               </ul>
 
               <a
-                href="/teachers"
+                href="/signup"
                 className={cn(
                   "flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-sm font-semibold transition-all",
                   i === 1
