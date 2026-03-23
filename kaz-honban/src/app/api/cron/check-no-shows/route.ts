@@ -12,10 +12,13 @@ interface BookingWithRoom {
 export async function GET(request: NextRequest) {
   try {
     // Verify cron secret in production
-    const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
-
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    if (!cronSecret) {
+      console.error("CRON_SECRET not configured");
+      return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+    }
+    const authHeader = request.headers.get("authorization");
+    if (authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -91,7 +94,7 @@ export async function GET(request: NextRequest) {
             .update({ status: "open", held_by: null, held_until: null } as never)
             .eq("teacher_id", noShowBooking.teacher_id)
             .eq("start_at", primarySlot.end_at)
-            .eq("status", "booked");
+            .in("status", ["booked", "held"]);
         }
       }
     }

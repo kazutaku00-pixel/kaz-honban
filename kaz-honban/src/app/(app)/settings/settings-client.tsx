@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -11,6 +11,7 @@ import {
   Globe,
   Target,
   Languages,
+  Camera,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -24,15 +25,33 @@ const TIMEZONES = [
   "America/Chicago",
   "America/Denver",
   "America/Los_Angeles",
+  "America/Sao_Paulo",
+  "America/Mexico_City",
   "Europe/London",
   "Europe/Paris",
   "Europe/Berlin",
+  "Europe/Moscow",
+  "Asia/Dubai",
+  "Asia/Kolkata",
+  "Asia/Bangkok",
+  "Asia/Jakarta",
+  "Asia/Shanghai",
+  "Asia/Hong_Kong",
   "Asia/Tokyo",
   "Asia/Seoul",
-  "Asia/Shanghai",
   "Asia/Singapore",
+  "Asia/Manila",
   "Australia/Sydney",
+  "Pacific/Auckland",
 ];
+
+function detectTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return "UTC";
+  }
+}
 
 interface SettingsClientProps {
   profile: {
@@ -63,9 +82,42 @@ export function SettingsClient({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(initialProfile.avatar_url);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isTeacher = roles.includes("teacher");
   const isLearner = roles.includes("learner");
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingAvatar(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/avatar", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to upload avatar");
+        return;
+      }
+
+      setAvatarUrl(data.avatar_url);
+      router.refresh();
+    } catch {
+      setError("Failed to upload avatar");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -154,15 +206,38 @@ export function SettingsClient({
           <div>
             <label className="text-sm text-text-secondary mb-1 block">Avatar</label>
             <div className="flex items-center gap-3">
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-accent to-orange-400 flex items-center justify-center text-white font-bold text-xl">
-                {(displayName || "?")[0].toUpperCase()}
+              <div className="relative">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={displayName}
+                    className="w-14 h-14 rounded-xl object-cover"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-accent to-orange-400 flex items-center justify-center text-white font-bold text-xl">
+                    {(displayName || "?")[0].toUpperCase()}
+                  </div>
+                )}
               </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
               <button
                 type="button"
-                disabled
-                className="px-4 py-2 rounded-xl bg-white/5 text-text-muted text-sm font-medium cursor-not-allowed"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="px-4 py-2 rounded-xl bg-white/5 text-text-secondary text-sm font-medium hover:bg-white/10 transition disabled:opacity-50 flex items-center gap-2"
               >
-                Upload (coming soon)
+                {uploadingAvatar ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Camera size={14} />
+                )}
+                {uploadingAvatar ? "Uploading..." : "Upload Photo"}
               </button>
             </div>
           </div>
@@ -172,17 +247,34 @@ export function SettingsClient({
               <Globe size={14} />
               Timezone
             </label>
-            <select
-              value={timezone}
-              onChange={(e) => setTimezone(e.target.value)}
-              className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-accent/50 transition appearance-none"
-            >
-              {TIMEZONES.map((tz) => (
-                <option key={tz} value={tz} className="bg-bg-secondary text-text-primary">
-                  {tz}
-                </option>
-              ))}
-            </select>
+            <div className="space-y-2">
+              <select
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-accent/50 transition appearance-none"
+              >
+                {TIMEZONES.map((tz) => (
+                  <option key={tz} value={tz} className="bg-bg-secondary text-text-primary">
+                    {tz}
+                  </option>
+                ))}
+                {/* Include user's detected TZ if not in list */}
+                {!TIMEZONES.includes(detectTimezone()) && (
+                  <option value={detectTimezone()} className="bg-bg-secondary text-text-primary">
+                    {detectTimezone()}
+                  </option>
+                )}
+              </select>
+              {timezone === "UTC" && (
+                <button
+                  type="button"
+                  onClick={() => setTimezone(detectTimezone())}
+                  className="text-xs text-accent hover:underline"
+                >
+                  Auto-detect: {detectTimezone()}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

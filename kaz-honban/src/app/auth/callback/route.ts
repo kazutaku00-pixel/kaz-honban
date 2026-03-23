@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -31,55 +32,42 @@ export async function GET(request: Request) {
     if (!error) {
       const { data: { user } } = await supabase.auth.getUser();
 
-      if (user && role) {
-        // Check if user already has a role (returning user via OAuth)
-        const { data: existingRoles } = await supabase
+      if (user) {
+        // Use service role for DB writes (RLS may block some inserts/updates)
+        const adminDb = createServiceRoleClient();
+
+        // Check if user already has a role
+        const { data: existingRoles } = await adminDb
           .from("user_roles")
           .select("role")
           .eq("user_id", user.id);
 
-        if (!existingRoles || existingRoles.length === 0) {
+        if (role && (!existingRoles || existingRoles.length === 0)) {
           // New user — assign role
-          await supabase
+          await adminDb
             .from("user_roles")
-            .insert({ user_id: user.id, role });
+            .insert({ user_id: user.id, role } as never);
 
           if (role === "learner") {
-            await supabase
+            await adminDb
               .from("learner_profiles")
-              .insert({ user_id: user.id });
+              .insert({ user_id: user.id } as never);
             return NextResponse.redirect(`${origin}/teachers`);
           } else if (role === "teacher") {
             if (invite) {
-              await supabase
+              await adminDb
                 .from("teacher_invites")
-                .update({ used_by: user.id, used_at: new Date().toISOString() })
+                .update({ used_by: user.id, used_at: new Date().toISOString() } as never)
                 .eq("invite_code", invite)
                 .is("used_by", null);
             }
-            await supabase
+            await adminDb
               .from("teacher_profiles")
-              .insert({ user_id: user.id });
+              .insert({ user_id: user.id } as never);
             return NextResponse.redirect(`${origin}/teacher/profile`);
           }
-        } else {
+        } else if (existingRoles && existingRoles.length > 0) {
           // Returning user — redirect based on existing role
-          const userRole = (existingRoles[0] as { role: string }).role;
-          if (userRole === "teacher") {
-            return NextResponse.redirect(`${origin}/teacher/dashboard`);
-          }
-          return NextResponse.redirect(`${origin}/dashboard`);
-        }
-      }
-
-      // Returning user without role param — check existing role
-      if (user) {
-        const { data: existingRoles } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id);
-
-        if (existingRoles && existingRoles.length > 0) {
           const userRole = (existingRoles[0] as { role: string }).role;
           if (userRole === "teacher") {
             return NextResponse.redirect(`${origin}/teacher/dashboard`);

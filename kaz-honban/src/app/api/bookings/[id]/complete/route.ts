@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import type { Booking } from "@/types/database";
 
@@ -8,14 +8,17 @@ export async function POST(
 ) {
   try {
     const { id: bookingId } = await params;
-    const supabase = await createServerSupabaseClient();
+    const authClient = await createServerSupabaseClient();
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await authClient.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Use service role to bypass RLS
+    const supabase = createServiceRoleClient();
 
     // Fetch booking
     const { data: bookingRaw, error: fetchError } = await supabase

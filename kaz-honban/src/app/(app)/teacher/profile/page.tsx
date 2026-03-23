@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import type { TeacherProfile } from "@/types/database";
+import type { TeacherProfile, Profile } from "@/types/database";
 import { TeacherProfileFormClient } from "./teacher-profile-form-client";
 
 export default async function TeacherProfileEditPage() {
@@ -19,6 +19,14 @@ export default async function TeacherProfileEditPage() {
 
   if (!roles?.length) redirect("/dashboard");
 
+  // Fetch user profile for avatar
+  const { data: userProfileRaw } = await supabase
+    .from("profiles")
+    .select("avatar_url, display_name")
+    .eq("id", user.id)
+    .single();
+  const userProfile = userProfileRaw as unknown as Pick<Profile, "avatar_url" | "display_name"> | null;
+
   const { data: profileRaw } = await supabase
     .from("teacher_profiles")
     .select("*")
@@ -29,6 +37,8 @@ export default async function TeacherProfileEditPage() {
 
   return (
     <TeacherProfileFormClient
+      avatarUrl={userProfile?.avatar_url ?? null}
+      displayName={userProfile?.display_name ?? ""}
       existingProfile={
         teacherProfile
           ? {

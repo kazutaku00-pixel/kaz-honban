@@ -96,14 +96,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <LanguageToggle />
           {profile && (
             <div className="flex items-center gap-2">
-              <div
-                className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold",
-                  isTeacher ? "bg-gold/20 text-gold" : "bg-accent/20 text-accent"
-                )}
-              >
-                {profile.display_name?.charAt(0)?.toUpperCase() || "?"}
-              </div>
+              {profile.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={profile.display_name}
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold",
+                    isTeacher ? "bg-gold/20 text-gold" : "bg-accent/20 text-accent"
+                  )}
+                >
+                  {profile.display_name?.charAt(0)?.toUpperCase() || "?"}
+                </div>
+              )}
               <span className="text-sm text-text-secondary">
                 {profile.display_name}
               </span>

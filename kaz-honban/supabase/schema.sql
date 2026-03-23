@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   email TEXT NOT NULL,
   display_name TEXT NOT NULL,
   avatar_url TEXT,
+
+
   timezone TEXT NOT NULL DEFAULT 'UTC',
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -347,6 +349,7 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 
 -- profiles
+
 DROP POLICY IF EXISTS "profiles_select" ON profiles;
 CREATE POLICY "profiles_select" ON profiles FOR SELECT USING (true);
 DROP POLICY IF EXISTS "profiles_update" ON profiles;
@@ -391,7 +394,7 @@ CREATE POLICY "teacher_invites_select" ON teacher_invites
 -- schedule_templates
 DROP POLICY IF EXISTS "schedule_templates_select" ON schedule_templates;
 CREATE POLICY "schedule_templates_select" ON schedule_templates
-  FOR SELECT USING (true);
+  FOR SELECT USING (auth.uid() = teacher_id);
 DROP POLICY IF EXISTS "schedule_templates_insert" ON schedule_templates;
 CREATE POLICY "schedule_templates_insert" ON schedule_templates
   FOR INSERT WITH CHECK (auth.uid() = teacher_id);
@@ -401,6 +404,10 @@ CREATE POLICY "schedule_templates_update" ON schedule_templates
 DROP POLICY IF EXISTS "schedule_templates_delete" ON schedule_templates;
 CREATE POLICY "schedule_templates_delete" ON schedule_templates
   FOR DELETE USING (auth.uid() = teacher_id);
+
+
+
+
 
 -- availability_slots
 DROP POLICY IF EXISTS "slots_select_open" ON availability_slots;
@@ -489,7 +496,7 @@ DROP POLICY IF EXISTS "favorites_delete" ON favorites;
 CREATE POLICY "favorites_delete" ON favorites
   FOR DELETE USING (auth.uid() = learner_id);
 
--- notifications
+-- notifications (insert via service_role only — API routes use service role client)
 DROP POLICY IF EXISTS "notifications_select" ON notifications;
 CREATE POLICY "notifications_select" ON notifications
   FOR SELECT USING (auth.uid() = user_id);

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { T } from "@/components/i18n-text";
+import { LocalTime } from "@/components/ui/local-time";
 import type { Profile, TeacherProfile, Booking, LessonReport } from "@/types/database";
 
 function formatCountdown(start: string) {
@@ -42,65 +43,61 @@ export default async function LearnerDashboard() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Fetch profile
-  const { data: profileRaw } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
-  const profile = profileRaw as unknown as Profile | null;
+  // Fetch all data in parallel for performance
+  const [
+    { data: profileRaw },
+    { data: upcomingRaw },
+    { data: reportsRaw },
+    { data: teachersRaw },
+    { count: totalLessons },
+    { count: favoriteCount },
+  ] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", user.id).single(),
+    supabase
+      .from("bookings")
+      .select(
+        `*, teacher:profiles!bookings_teacher_id_fkey(*), teacher_profile:teacher_profiles!bookings_teacher_id_fkey(*)`
+      )
+      .eq("learner_id", user.id)
+      .in("status", ["confirmed", "in_session"])
+      .gte("scheduled_start_at", new Date().toISOString())
+      .order("scheduled_start_at", { ascending: true })
+      .limit(1),
+    supabase
+      .from("lesson_reports")
+      .select(
+        `*, booking:bookings!inner(learner_id, teacher_id, scheduled_start_at), teacher_profile:teacher_profiles!lesson_reports_teacher_id_fkey(user_id), teacher:profiles!lesson_reports_teacher_id_fkey(*)`
+      )
+      .not("homework", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(3),
+    supabase
+      .from("teacher_profiles")
+      .select("*, profile:profiles!teacher_profiles_user_id_fkey(*)")
+      .eq("approval_status", "approved")
+      .eq("is_public", true)
+      .limit(3),
+    supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("learner_id", user.id)
+      .eq("status", "completed"),
+    supabase
+      .from("favorites")
+      .select("id", { count: "exact", head: true })
+      .eq("learner_id", user.id),
+  ]);
 
-  // Next upcoming booking
-  const { data: upcomingRaw } = await supabase
-    .from("bookings")
-    .select(
-      `*, teacher:profiles!bookings_teacher_id_fkey(*), teacher_profile:teacher_profiles!bookings_teacher_id_fkey(*)`
-    )
-    .eq("learner_id", user.id)
-    .in("status", ["confirmed", "in_session"])
-    .gte("scheduled_start_at", new Date().toISOString())
-    .order("scheduled_start_at", { ascending: true })
-    .limit(1);
+  const profile = profileRaw as unknown as Profile | null;
 
   const nextBooking = (upcomingRaw?.[0] as unknown as (Booking & { teacher: Profile; teacher_profile: TeacherProfile }) | undefined) ?? null;
 
-  // Recent homework (lesson reports with homework)
-  const { data: reportsRaw } = await supabase
-    .from("lesson_reports")
-    .select(
-      `*, booking:bookings!inner(learner_id, teacher_id, scheduled_start_at), teacher_profile:teacher_profiles!lesson_reports_teacher_id_fkey(user_id), teacher:profiles!lesson_reports_teacher_id_fkey(*)`
-    )
-    .not("homework", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(3);
-
-  // Filter only reports for this user's bookings
   const recentHomework = ((reportsRaw ?? []) as unknown as (LessonReport & {
     booking: { learner_id: string; teacher_id: string; scheduled_start_at: string };
     teacher: Profile;
   })[]).filter((r) => r.booking?.learner_id === user.id);
 
-  // Recommended teachers (3 random approved)
-  const { data: teachersRaw } = await supabase
-    .from("teacher_profiles")
-    .select("*, profile:profiles!teacher_profiles_user_id_fkey(*)")
-    .eq("approval_status", "approved")
-    .eq("is_public", true)
-    .limit(3);
-
   const recommendedTeachers = (teachersRaw ?? []) as unknown as (TeacherProfile & { profile: Profile })[];
-
-  // Stats
-  const { count: totalLessons } = await supabase
-    .from("bookings")
-    .select("id", { count: "exact", head: true })
-    .eq("learner_id", user.id)
-    .eq("status", "completed");
-
-  const { count: favoriteCount } = await supabase
-    .from("favorites")
-    .select("id", { count: "exact", head: true })
-    .eq("learner_id", user.id);
 
   const displayName = profile?.display_name ?? "there";
   const firstName = displayName.split(" ")[0];
@@ -176,17 +173,11 @@ export default async function LearnerDashboard() {
               <div className="flex items-center gap-3 text-sm text-text-muted mt-1">
                 <span className="flex items-center gap-1">
                   <CalendarDays size={14} />
-                  {new Date(nextBooking.scheduled_start_at).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })}
+                  <LocalTime isoString={nextBooking.scheduled_start_at} format="date" />
                 </span>
                 <span className="flex items-center gap-1">
                   <Clock size={14} />
-                  {new Date(nextBooking.scheduled_start_at).toLocaleTimeString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  <LocalTime isoString={nextBooking.scheduled_start_at} format="time" />
                 </span>
               </div>
             </div>

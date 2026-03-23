@@ -25,6 +25,18 @@ export const metadata: Metadata = {
       "1-on-1 Japanese lessons with native speakers. From $10/25min.",
     type: "website",
   },
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover" as const,
+  themeColor: "#0a0a0a",
 };
 
 export default function RootLayout({

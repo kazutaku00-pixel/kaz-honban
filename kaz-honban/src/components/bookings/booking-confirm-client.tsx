@@ -36,6 +36,10 @@ export function BookingConfirmClient({
   const [error, setError] = useState<string | null>(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
 
+  const userTz = typeof window !== "undefined"
+    ? Intl.DateTimeFormat().resolvedOptions().timeZone
+    : "UTC";
+
   const startDate = new Date(slot.start_at);
   const endDate = new Date(
     startDate.getTime() + durationMinutes * 60 * 1000
@@ -45,17 +49,30 @@ export function BookingConfirmClient({
     weekday: "long",
     month: "long",
     day: "numeric",
+    timeZone: userTz,
   });
 
   const formattedStartTime = startDate.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: userTz,
   });
 
   const formattedEndTime = endDate.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: userTz,
   });
+
+  const tzShort = (() => {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: userTz,
+        timeZoneName: "short",
+      }).formatToParts(new Date());
+      return parts.find((p) => p.type === "timeZoneName")?.value ?? userTz;
+    } catch { return userTz; }
+  })();
 
   const isBeta = process.env.NEXT_PUBLIC_PAYMENT_ENABLED !== "true";
 
@@ -160,6 +177,7 @@ export function BookingConfirmClient({
               <Clock className="w-5 h-5 text-[#FF6B4A]" />
               <span>
                 {formattedStartTime} - {formattedEndTime} ({durationMinutes} min)
+                <span className="text-xs text-gray-500 ml-1">{tzShort}</span>
               </span>
             </div>
 

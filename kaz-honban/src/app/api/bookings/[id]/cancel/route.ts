@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { notifyBookingCancelled } from "@/lib/notifications";
 import type { Booking, AvailabilitySlot } from "@/types/database";
@@ -9,14 +9,17 @@ export async function PATCH(
 ) {
   try {
     const { id: bookingId } = await params;
-    const supabase = await createServerSupabaseClient();
+    const authClient = await createServerSupabaseClient();
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await authClient.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Use service role for DB operations (RLS prevents learner from updating slots)
+    const supabase = createServiceRoleClient();
 
     // Fetch booking
     const { data: bookingRaw, error: fetchError } = await supabase
@@ -82,7 +85,7 @@ export async function PATCH(
           .update({ status: "open", held_by: null, held_until: null } as never)
           .eq("teacher_id", primarySlot.teacher_id)
           .eq("start_at", primarySlot.end_at)
-          .eq("status", "booked");
+          .in("status", ["booked", "held"]);
       }
     }
 

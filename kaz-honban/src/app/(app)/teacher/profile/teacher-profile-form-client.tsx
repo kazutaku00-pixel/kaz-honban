@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -15,6 +15,7 @@ import {
   BarChart,
   Video,
   Award,
+  Camera,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
@@ -38,13 +39,20 @@ interface TeacherProfileFormClientProps {
     trial_price: number;
     approval_status: TeacherApprovalStatus;
   } | null;
+  avatarUrl: string | null;
+  displayName: string;
 }
 
 export function TeacherProfileFormClient({
   existingProfile,
+  avatarUrl: initialAvatarUrl,
+  displayName,
 }: TeacherProfileFormClientProps) {
   const router = useRouter();
   const { t } = useI18n();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [headline, setHeadline] = useState(existingProfile?.headline ?? "");
   const [bio, setBio] = useState(existingProfile?.bio ?? "");
   const [hourlyRate, setHourlyRate] = useState(existingProfile?.hourly_rate ?? 15);
@@ -63,6 +71,36 @@ export function TeacherProfileFormClient({
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingAvatar(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/avatar", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to upload avatar");
+        return;
+      }
+
+      setAvatarUrl(data.avatar_url);
+      router.refresh();
+    } catch {
+      setError("Failed to upload avatar");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
 
   function toggleArrayItem(arr: string[], item: string, setter: (v: string[]) => void) {
     setter(arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item]);
@@ -152,15 +190,38 @@ export function TeacherProfileFormClient({
           <h2 className="text-sm font-semibold uppercase tracking-wider">{t("profile.avatar")}</h2>
         </div>
         <div className="flex items-center gap-3">
-          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-gold to-yellow-600 flex items-center justify-center text-white font-bold text-2xl">
-            {(headline || "T")[0].toUpperCase()}
+          <div className="relative">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={displayName}
+                className="w-16 h-16 rounded-xl object-cover"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-gold to-yellow-600 flex items-center justify-center text-white font-bold text-2xl">
+                {(displayName || "T")[0].toUpperCase()}
+              </div>
+            )}
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleAvatarUpload}
+            className="hidden"
+          />
           <button
             type="button"
-            disabled
-            className="px-4 py-2 rounded-xl bg-white/5 text-text-muted text-sm font-medium cursor-not-allowed"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingAvatar}
+            className="px-4 py-2 rounded-xl bg-white/5 text-text-secondary text-sm font-medium hover:bg-white/10 transition disabled:opacity-50 flex items-center gap-2"
           >
-            {t("profile.uploadSoon")}
+            {uploadingAvatar ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Camera size={14} />
+            )}
+            {uploadingAvatar ? "Uploading..." : t("profile.uploadPhoto")}
           </button>
         </div>
       </div>

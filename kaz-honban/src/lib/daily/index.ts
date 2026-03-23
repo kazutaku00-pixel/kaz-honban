@@ -1,11 +1,19 @@
 const DAILY_API_URL = "https://api.daily.co/v1";
 
+function getDailyApiKey(): string {
+  const key = process.env.DAILY_API_KEY;
+  if (!key) {
+    throw new Error("DAILY_API_KEY is not configured. Please set it in your environment variables.");
+  }
+  return key;
+}
+
 export async function createDailyRoom(bookingId: string, expiresAt: Date) {
   const res = await fetch(`${DAILY_API_URL}/rooms`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.DAILY_API_KEY}`,
+      Authorization: `Bearer ${getDailyApiKey()}`,
     },
     body: JSON.stringify({
       name: `nihongo-${bookingId.slice(0, 8)}`,
@@ -40,7 +48,7 @@ export async function createMeetingToken(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.DAILY_API_KEY}`,
+      Authorization: `Bearer ${getDailyApiKey()}`,
     },
     body: JSON.stringify({
       properties: {

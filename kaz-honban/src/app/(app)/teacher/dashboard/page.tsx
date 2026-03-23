@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { T } from "@/components/i18n-text";
+import { LocalTime } from "@/components/ui/local-time";
 import type { Profile, Booking, TeacherProfile } from "@/types/database";
 
 export default async function TeacherDashboard() {
@@ -34,62 +35,55 @@ export default async function TeacherDashboard() {
 
   if (!roles?.length) redirect("/dashboard");
 
-  const { data: profileRaw } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
-  const profile = profileRaw as unknown as Profile | null;
-
-  const { data: teacherProfileRaw } = await supabase
-    .from("teacher_profiles")
-    .select("*")
-    .eq("user_id", user.id)
-    .single();
-  const teacherProfile = teacherProfileRaw as unknown as TeacherProfile | null;
-
-  // Today's bookings
+  // Prepare date ranges
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
-
-  const { data: todayBookingsRaw } = await supabase
-    .from("bookings")
-    .select(`*, learner:profiles!bookings_learner_id_fkey(*)`)
-    .eq("teacher_id", user.id)
-    .in("status", ["confirmed", "in_session"])
-    .gte("scheduled_start_at", todayStart.toISOString())
-    .lte("scheduled_start_at", todayEnd.toISOString())
-    .order("scheduled_start_at", { ascending: true });
-
-  const todayBookings = (todayBookingsRaw ?? []) as unknown as (Booking & { learner: Profile })[];
-
-  // Next student (next upcoming booking)
-  const nextStudent = todayBookings.find(
-    (b) => new Date(b.scheduled_start_at).getTime() > Date.now()
-  ) ?? todayBookings[0] ?? null;
-
-  // Monthly stats
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
 
-  const { count: monthlyLessons } = await supabase
-    .from("bookings")
-    .select("id", { count: "exact", head: true })
-    .eq("teacher_id", user.id)
-    .eq("status", "completed")
-    .gte("scheduled_start_at", monthStart.toISOString());
+  // Fetch all data in parallel for performance
+  const [
+    { data: profileRaw },
+    { data: teacherProfileRaw },
+    { data: todayBookingsRaw },
+    { count: monthlyLessons },
+    { data: completedBookingsRaw },
+  ] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", user.id).single(),
+    supabase.from("teacher_profiles").select("*").eq("user_id", user.id).single(),
+    supabase
+      .from("bookings")
+      .select(`*, learner:profiles!bookings_learner_id_fkey(*)`)
+      .eq("teacher_id", user.id)
+      .in("status", ["confirmed", "in_session"])
+      .gte("scheduled_start_at", todayStart.toISOString())
+      .lte("scheduled_start_at", todayEnd.toISOString())
+      .order("scheduled_start_at", { ascending: true }),
+    supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("teacher_id", user.id)
+      .eq("status", "completed")
+      .gte("scheduled_start_at", monthStart.toISOString()),
+    supabase
+      .from("bookings")
+      .select(`*, learner:profiles!bookings_learner_id_fkey(*), lesson_report:lesson_reports(*)`)
+      .eq("teacher_id", user.id)
+      .eq("status", "completed")
+      .order("scheduled_start_at", { ascending: false })
+      .limit(10),
+  ]);
 
-  // Pending reports (completed bookings without lesson reports)
-  const { data: completedBookingsRaw } = await supabase
-    .from("bookings")
-    .select(`*, learner:profiles!bookings_learner_id_fkey(*), lesson_report:lesson_reports(*)`)
-    .eq("teacher_id", user.id)
-    .eq("status", "completed")
-    .order("scheduled_start_at", { ascending: false })
-    .limit(10);
+  const profile = profileRaw as unknown as Profile | null;
+  const teacherProfile = teacherProfileRaw as unknown as TeacherProfile | null;
+  const todayBookings = (todayBookingsRaw ?? []) as unknown as (Booking & { learner: Profile })[];
+
+  const nextStudent = todayBookings.find(
+    (b) => new Date(b.scheduled_start_at).getTime() > Date.now()
+  ) ?? todayBookings[0] ?? null;
 
   const pendingReports = ((completedBookingsRaw ?? []) as unknown as (Booking & {
     learner: Profile;
@@ -196,10 +190,7 @@ export default async function TeacherDashboard() {
               <div className="flex items-center gap-3 text-sm text-text-muted mt-1">
                 <span className="flex items-center gap-1">
                   <Clock size={14} />
-                  {new Date(nextStudent.scheduled_start_at).toLocaleTimeString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  <LocalTime isoString={nextStudent.scheduled_start_at} format="time" />
                 </span>
                 <span>{nextStudent.duration_minutes} min</span>
               </div>
@@ -240,10 +231,7 @@ export default async function TeacherDashboard() {
             >
               <div className="text-center min-w-[56px]">
                 <p className="text-sm font-bold text-text-primary">
-                  {new Date(booking.scheduled_start_at).toLocaleTimeString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  <LocalTime isoString={booking.scheduled_start_at} format="time" />
                 </p>
                 <p className="text-xs text-text-muted">{booking.duration_minutes}m</p>
               </div>

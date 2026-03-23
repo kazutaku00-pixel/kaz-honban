@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { bookingSchema } from "@/lib/validations";
 import { notifyBookingCreated } from "@/lib/notifications";
@@ -6,10 +6,10 @@ import type { AvailabilitySlot, Booking } from "@/types/database";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const authClient = await createServerSupabaseClient();
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await authClient.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -24,6 +24,25 @@ export async function POST(request: NextRequest) {
     }
 
     const { teacher_id, slot_id, duration_minutes, learner_note } = parsed.data;
+
+    // Use service role to bypass RLS for slot updates
+    const supabase = createServiceRoleClient();
+
+    // Validate teacher is approved and public
+    const { data: teacherCheckRaw } = await supabase
+      .from("teacher_profiles")
+      .select("approval_status, is_public")
+      .eq("user_id", teacher_id)
+      .single();
+
+    const teacherCheck = teacherCheckRaw as unknown as { approval_status: string; is_public: boolean } | null;
+
+    if (!teacherCheck || teacherCheck.approval_status !== "approved" || !teacherCheck.is_public) {
+      return NextResponse.json(
+        { error: "Teacher is not available for booking" },
+        { status: 400 }
+      );
+    }
 
     // Prevent booking yourself
     if (teacher_id === user.id) {

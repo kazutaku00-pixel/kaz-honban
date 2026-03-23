@@ -38,12 +38,33 @@ function formatDate(date: Date) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function formatTime(isoString: string) {
+function getUserTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return "UTC";
+  }
+}
+
+function formatTime(isoString: string, tz: string) {
   return new Date(isoString).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
+    timeZone: tz,
   });
+}
+
+function formatTimezoneShort(tz: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      timeZoneName: "short",
+    }).formatToParts(new Date());
+    return parts.find((p) => p.type === "timeZoneName")?.value ?? tz;
+  } catch {
+    return tz;
+  }
 }
 
 export function AvailableSlots({ teacherId }: AvailableSlotsProps) {
@@ -52,6 +73,7 @@ export function AvailableSlots({ teacherId }: AvailableSlotsProps) {
   const [loading, setLoading] = useState(true);
   const [selectedDateIndex, setSelectedDateIndex] = useState(0);
   const [duration, setDuration] = useState<25 | 50>(25);
+  const userTz = useMemo(() => getUserTimezone(), []);
 
   const days = useMemo(() => getNext7Days(), []);
 
@@ -101,9 +123,14 @@ export function AvailableSlots({ teacherId }: AvailableSlotsProps) {
 
   return (
     <div>
-      <h3 className="text-lg font-semibold text-text-primary font-[family-name:var(--font-display)] mb-4">
-        Available Slots
-      </h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-text-primary font-[family-name:var(--font-display)]">
+          Available Slots
+        </h3>
+        <span className="text-xs text-text-muted bg-bg-tertiary px-2 py-1 rounded-lg">
+          {formatTimezoneShort(userTz)}
+        </span>
+      </div>
 
       {/* Duration toggle */}
       <div className="flex gap-2 mb-5">
@@ -194,7 +221,7 @@ export function AvailableSlots({ teacherId }: AvailableSlotsProps) {
                 "hover:border-accent/50 hover:text-accent hover:bg-accent-subtle"
               )}
             >
-              {formatTime(slot.start_at)}
+              {formatTime(slot.start_at, userTz)}
             </button>
           ))}
         </div>
