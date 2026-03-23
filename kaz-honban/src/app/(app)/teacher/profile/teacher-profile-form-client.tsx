@@ -38,6 +38,7 @@ interface TeacherProfileFormClientProps {
     trial_enabled: boolean;
     trial_price: number;
     approval_status: TeacherApprovalStatus;
+    is_public: boolean;
   } | null;
   avatarUrl: string | null;
   displayName: string;
@@ -67,6 +68,7 @@ export function TeacherProfileFormClient({
   const [introVideoUrl, setIntroVideoUrl] = useState(existingProfile?.intro_video_url ?? "");
   const [trialEnabled, setTrialEnabled] = useState(existingProfile?.trial_enabled ?? false);
   const [trialPrice, setTrialPrice] = useState(existingProfile?.trial_price ?? 0);
+  const [isPublic, setIsPublic] = useState(existingProfile?.is_public ?? false);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -140,6 +142,7 @@ export function TeacherProfileFormClient({
         intro_video_url: introVideoUrl.trim() || null,
         trial_enabled: trialEnabled,
         trial_price: trialPrice,
+        is_public: isPublic,
         ...(submitForReview ? { approval_status: "submitted" } : {}),
       } as never;
 
@@ -398,6 +401,35 @@ export function TeacherProfileFormClient({
           </div>
         )}
       </div>
+
+      {/* Visibility Toggle */}
+      {approvalStatus === "approved" && (
+        <div className="bg-bg-secondary rounded-2xl border border-border p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-text-primary">{t("profile.visibility")}</h2>
+              <p className="text-xs text-text-muted mt-1">
+                {isPublic ? t("profile.visible") : t("profile.hidden")}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsPublic(!isPublic)}
+              className={cn(
+                "w-12 h-6 rounded-full transition-colors relative",
+                isPublic ? "bg-green-500" : "bg-white/10"
+              )}
+            >
+              <div
+                className={cn(
+                  "w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform",
+                  isPublic ? "translate-x-6" : "translate-x-0.5"
+                )}
+              />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Additional Details */}
       <div className="bg-bg-secondary rounded-2xl border border-border p-6 space-y-4">

@@ -204,9 +204,18 @@ export function AvailableSlots({ teacherId }: AvailableSlotsProps) {
             />
           ))}
         </div>
+      ) : slots.length === 0 ? (
+        <div className="text-center py-8 space-y-2">
+          <p className="text-text-muted text-sm">
+            This teacher has no available slots in the next 7 days.
+          </p>
+          <p className="text-text-muted text-xs">
+            Check back later or browse other teachers.
+          </p>
+        </div>
       ) : slotsForDate.length === 0 ? (
         <p className="text-center py-8 text-text-muted text-sm">
-          No available slots for this day
+          No slots on this day — try another date above
         </p>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">

@@ -55,6 +55,7 @@ export default async function TeacherProfileEditPage() {
               trial_enabled: teacherProfile.trial_enabled,
               trial_price: teacherProfile.trial_price ?? 0,
               approval_status: teacherProfile.approval_status,
+              is_public: teacherProfile.is_public,
             }
           : null
       }

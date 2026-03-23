@@ -1,11 +1,13 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { createNotification } from "@/lib/notifications";
 
 interface BookingWithRoom {
   id: string;
   slot_id: string;
   duration_minutes: number;
   teacher_id: string;
+  learner_id: string;
   daily_room: Array<{ id: string }> | null;
 }
 
@@ -30,7 +32,7 @@ export async function GET(request: NextRequest) {
     // Find confirmed bookings past start + 15 min where nobody joined (no daily_room)
     const { data: bookingsRaw, error: fetchError } = await supabase
       .from("bookings")
-      .select("id, slot_id, duration_minutes, teacher_id, daily_room:daily_rooms(id)")
+      .select("id, slot_id, duration_minutes, teacher_id, learner_id, daily_room:daily_rooms(id)")
       .eq("status", "confirmed")
       .lt("scheduled_start_at", cutoff);
 
@@ -96,6 +98,28 @@ export async function GET(request: NextRequest) {
             .eq("start_at", primarySlot.end_at)
             .in("status", ["booked", "held"]);
         }
+      }
+    }
+
+    // Notify both parties about no-show
+    for (const b of noShowBookings) {
+      await createNotification({
+        supabase,
+        userId: b.teacher_id,
+        type: "booking_cancelled",
+        title: "No Show",
+        message: "A student did not show up for the scheduled lesson.",
+        link: "/teacher/bookings",
+      });
+      if (b.learner_id) {
+        await createNotification({
+          supabase,
+          userId: b.learner_id,
+          type: "booking_cancelled",
+          title: "Missed Lesson",
+          message: "You missed your scheduled lesson. Please book again.",
+          link: "/bookings",
+        });
       }
     }
 

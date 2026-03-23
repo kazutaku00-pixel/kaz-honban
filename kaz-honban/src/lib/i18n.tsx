@@ -143,6 +143,50 @@ const translations: Record<Locale, Record<string, string>> = {
     "day.thu": "Thu",
     "day.fri": "Fri",
     "day.sat": "Sat",
+
+    // Empty states
+    "empty.noSlots": "No available slots in the next 7 days",
+    "empty.noSlotsHint": "Check back later or browse other teachers",
+    "empty.noSlotsDay": "No slots on this day — try another date above",
+    "empty.noTeachers": "No teachers found matching your filters",
+    "empty.noTeachersHint": "Try adjusting your search or filters",
+    "empty.noFavorites": "No favorites yet",
+    "empty.noFavoritesHint": "Tap the heart on a teacher's card to save them here",
+    "empty.noBookings": "No upcoming bookings",
+    "empty.noPastBookings": "No past bookings yet",
+
+    // Status labels
+    "status.draft": "Draft",
+    "status.submitted": "Under Review",
+    "status.approved": "Approved",
+    "status.rejected": "Rejected",
+    "status.suspended": "Suspended",
+    "status.confirmed": "Confirmed",
+    "status.in_session": "In Session",
+    "status.completed": "Completed",
+    "status.cancelled": "Cancelled",
+    "status.no_show": "No Show",
+
+    // Errors
+    "error.generic": "Something went wrong. Please try again.",
+    "error.unauthorized": "Please log in to continue.",
+    "error.notFound": "Not found",
+    "error.slotUnavailable": "This slot is no longer available.",
+    "error.bookingFailed": "Failed to create booking. Please try again.",
+
+    // Notifications
+    "notif.newBooking": "New Booking",
+    "notif.bookingCancelled": "Booking Cancelled",
+    "notif.lessonComplete": "Lesson Completed",
+    "notif.reportReady": "Lesson Report Ready",
+    "notif.newReview": "New Review",
+    "notif.profileApproved": "Profile Approved!",
+    "notif.profileRejected": "Profile Needs Changes",
+
+    // Teacher profile pause
+    "profile.visibility": "Profile Visibility",
+    "profile.visible": "Visible to students",
+    "profile.hidden": "Hidden from search",
   },
   ja: {
     // App Shell
@@ -276,6 +320,50 @@ const translations: Record<Locale, Record<string, string>> = {
     "day.thu": "木",
     "day.fri": "金",
     "day.sat": "土",
+
+    // Empty states
+    "empty.noSlots": "今後7日間に空きスロットがありません",
+    "empty.noSlotsHint": "後でまた確認するか、他の先生を探してください",
+    "empty.noSlotsDay": "この日は空きがありません — 他の日を選んでください",
+    "empty.noTeachers": "条件に合う先生が見つかりません",
+    "empty.noTeachersHint": "検索条件を変更してみてください",
+    "empty.noFavorites": "お気に入りはまだありません",
+    "empty.noFavoritesHint": "先生のカードのハートをタップして保存しましょう",
+    "empty.noBookings": "今後の予約はありません",
+    "empty.noPastBookings": "過去の予約はまだありません",
+
+    // Status labels
+    "status.draft": "下書き",
+    "status.submitted": "審査中",
+    "status.approved": "承認済み",
+    "status.rejected": "不承認",
+    "status.suspended": "停止中",
+    "status.confirmed": "確定済み",
+    "status.in_session": "レッスン中",
+    "status.completed": "完了",
+    "status.cancelled": "キャンセル",
+    "status.no_show": "無断欠席",
+
+    // Errors
+    "error.generic": "エラーが発生しました。もう一度お試しください。",
+    "error.unauthorized": "ログインしてください。",
+    "error.notFound": "見つかりません",
+    "error.slotUnavailable": "このスロットはすでに予約されています。",
+    "error.bookingFailed": "予約に失敗しました。もう一度お試しください。",
+
+    // Notifications
+    "notif.newBooking": "新しい予約",
+    "notif.bookingCancelled": "予約キャンセル",
+    "notif.lessonComplete": "レッスン完了",
+    "notif.reportReady": "レッスンレポート",
+    "notif.newReview": "新しいレビュー",
+    "notif.profileApproved": "プロフィール承認！",
+    "notif.profileRejected": "プロフィール修正が必要です",
+
+    // Teacher profile pause
+    "profile.visibility": "プロフィール公開設定",
+    "profile.visible": "生徒に表示中",
+    "profile.hidden": "検索から非表示",
   },
 };
 

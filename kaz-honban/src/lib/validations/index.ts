@@ -17,7 +17,7 @@ export const teacherProfileSchema = z.object({
   categories: z.array(z.string()).min(1, "Select at least one category"),
   languages: z.array(z.string()).min(1, "Select at least one language"),
   levels: z.array(z.string()).min(1, "Select at least one level"),
-  lesson_duration_options: z.array(z.number()),
+  lesson_duration_options: z.array(z.number().refine((n) => n === 25 || n === 50)).min(1, "Select at least one duration"),
   teaching_style: z.string().optional(),
   certifications: z.string().optional(),
   intro_video_url: z.string().url().optional().or(z.literal("")),

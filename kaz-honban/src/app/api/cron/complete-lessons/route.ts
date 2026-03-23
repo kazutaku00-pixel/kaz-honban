@@ -1,5 +1,6 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { createNotification } from "@/lib/notifications";
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     // Find in_session bookings past their scheduled end
     const { data: bookings, error: fetchError } = await supabase
       .from("bookings")
-      .select("id")
+      .select("id, learner_id, teacher_id")
       .eq("status", "in_session")
       .lt("scheduled_end_at", now);
 
@@ -36,7 +37,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, completed_count: 0 });
     }
 
-    const ids = (bookings as unknown as Array<{ id: string }>).map((b) => b.id);
+    const typedBookings = bookings as unknown as Array<{ id: string; learner_id: string; teacher_id: string }>;
+    const ids = typedBookings.map((b) => b.id);
 
     const { error: updateError } = await supabase
       .from("bookings")
@@ -49,6 +51,26 @@ export async function GET(request: NextRequest) {
         { error: "Failed to complete bookings" },
         { status: 500 }
       );
+    }
+
+    // Notify both parties
+    for (const b of typedBookings) {
+      await createNotification({
+        supabase,
+        userId: b.learner_id,
+        type: "lesson_completed",
+        title: "Lesson Completed",
+        message: "Your lesson is complete! Leave a review for your teacher.",
+        link: `/bookings/${b.id}/review`,
+      });
+      await createNotification({
+        supabase,
+        userId: b.teacher_id,
+        type: "lesson_completed",
+        title: "Lesson Completed",
+        message: "Lesson complete! Write a report for your student.",
+        link: `/teacher/bookings/${b.id}/report`,
+      });
     }
 
     return NextResponse.json({

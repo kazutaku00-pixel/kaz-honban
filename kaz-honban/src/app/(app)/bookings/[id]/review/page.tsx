@@ -41,6 +41,9 @@ export default async function ReviewPage({
   // Verify learner
   if (booking.learner_id !== user.id) redirect("/bookings");
 
+  // Only completed bookings can be reviewed
+  if (booking.status !== "completed") redirect("/bookings");
+
   // Check if already reviewed
   const { data: existingReview } = await supabase
     .from("reviews")
