@@ -5,6 +5,8 @@ import {
   useContext,
   useEffect,
   useState,
+  useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -32,49 +34,47 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const fetchingRef = useRef(false);
 
-  const fetchUserData = async () => {
-    const supabase = createClient();
+  const fetchUserData = useCallback(async () => {
+    // Prevent concurrent fetches
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (!user) {
-      setUser(null);
-      setProfile(null);
-      setRoles([]);
+      if (!user) {
+        setUser(null);
+        setProfile(null);
+        setRoles([]);
+        return;
+      }
+
+      setUser(user);
+
+      // Parallel fetch for profile + roles
+      const [{ data: profileData }, { data: rolesData }] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", user.id).single(),
+        supabase.from("user_roles").select("role").eq("user_id", user.id),
+      ]);
+
+      if (profileData) {
+        setProfile(profileData as unknown as Profile);
+      }
+      if (rolesData) {
+        setRoles(
+          (rolesData as unknown as { role: UserRole }[]).map((r) => r.role)
+        );
+      }
+    } finally {
       setLoading(false);
-      return;
+      fetchingRef.current = false;
     }
-
-    setUser(user);
-
-    // Fetch profile
-    const { data: profileData } = (await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single()) as unknown as { data: Profile | null };
-
-    if (profileData) {
-      setProfile(profileData);
-    }
-
-    // Fetch roles
-    const { data: rolesData } = (await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)) as unknown as {
-      data: { role: UserRole }[] | null;
-    };
-
-    if (rolesData) {
-      setRoles(rolesData.map((r) => r.role));
-    }
-
-    setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     fetchUserData();
@@ -94,7 +94,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchUserData]);
 
   return (
     <UserContext.Provider

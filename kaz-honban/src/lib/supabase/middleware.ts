@@ -42,24 +42,14 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect logged-in users from auth pages (except role-select) to their dashboard
+  // Redirect logged-in users from auth pages — use simple redirect without DB query
   const authPaths = ["/login", "/signup"];
   const isAuthPage = authPaths.some((p) => request.nextUrl.pathname.startsWith(p));
 
   if (isAuthPage && user) {
-    // Check user role and redirect to appropriate dashboard
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id);
-
+    // Redirect to /dashboard — the app layout will handle role-based routing
     const url = request.nextUrl.clone();
-    if (roles && roles.length > 0) {
-      const role = (roles[0] as { role: string }).role;
-      url.pathname = role === "teacher" ? "/teacher/dashboard" : "/dashboard";
-    } else {
-      url.pathname = "/role-select";
-    }
+    url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }
 

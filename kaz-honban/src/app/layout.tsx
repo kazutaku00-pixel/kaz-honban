@@ -47,9 +47,14 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${jakarta.variable} ${notoJP.variable}`}>
       <head>
-        {/* Clash Display from Fontshare — not available in next/font */}
+        {/* Clash Display — preload for faster FCP, only weights 600+700 */}
         <link
-          href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap"
+          rel="preload"
+          as="style"
+          href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&display=swap"
+        />
+        <link
+          href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&display=swap"
           rel="stylesheet"
         />
       </head>

@@ -27,9 +27,11 @@ export function NotificationBell() {
 
   useEffect(() => {
     if (!user) return;
-    async function fetch() {
+
+    const supabase = createClient();
+
+    async function fetchNotifications() {
       setLoading(true);
-      const supabase = createClient();
       const { data } = await supabase
         .from("notifications")
         .select("*")
@@ -39,7 +41,32 @@ export function NotificationBell() {
       setNotifications((data ?? []) as unknown as Notification[]);
       setLoading(false);
     }
-    fetch();
+
+    fetchNotifications();
+
+    // Realtime subscription for new notifications
+    const channel = supabase
+      .channel(`notif-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          setNotifications((prev) => [
+            payload.new as unknown as Notification,
+            ...prev.slice(0, 19),
+          ]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   // Close on outside click
