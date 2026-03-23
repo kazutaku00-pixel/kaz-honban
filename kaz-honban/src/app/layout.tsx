@@ -25,9 +25,9 @@ export const metadata: Metadata = {
       "1-on-1 Japanese lessons with native speakers. From $10/25min.",
     type: "website",
   },
-  other: {
-    "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "black-translucent",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
   },
 };
 
