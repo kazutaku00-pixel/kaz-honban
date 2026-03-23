@@ -20,7 +20,6 @@ export default async function BookingsPage() {
       *,
       teacher:profiles!bookings_teacher_id_fkey(*),
       learner:profiles!bookings_learner_id_fkey(*),
-      teacher_profile:teacher_profiles!bookings_teacher_id_fkey(*),
       daily_room:daily_rooms(*),
       review:reviews(*),
       lesson_report:lesson_reports(*)

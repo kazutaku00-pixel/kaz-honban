@@ -56,7 +56,7 @@ export default async function LearnerDashboard() {
     supabase
       .from("bookings")
       .select(
-        `*, teacher:profiles!bookings_teacher_id_fkey(*), teacher_profile:teacher_profiles!bookings_teacher_id_fkey(*)`
+        `*, teacher:profiles!bookings_teacher_id_fkey(*)`
       )
       .eq("learner_id", user.id)
       .in("status", ["confirmed", "in_session"])
@@ -90,7 +90,7 @@ export default async function LearnerDashboard() {
 
   const profile = profileRaw as unknown as Profile | null;
 
-  const nextBooking = (upcomingRaw?.[0] as unknown as (Booking & { teacher: Profile; teacher_profile: TeacherProfile }) | undefined) ?? null;
+  const nextBooking = (upcomingRaw?.[0] as unknown as (Booking & { teacher: Profile }) | undefined) ?? null;
 
   const recentHomework = ((reportsRaw ?? []) as unknown as (LessonReport & {
     booking: { learner_id: string; teacher_id: string; scheduled_start_at: string };

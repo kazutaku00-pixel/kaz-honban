@@ -19,7 +19,7 @@ export default async function ReviewPage({
   const { data: bookingRaw } = await supabase
     .from("bookings")
     .select(
-      `*, teacher:profiles!bookings_teacher_id_fkey(*), teacher_profile:teacher_profiles!bookings_teacher_id_fkey(*)`
+      `*, teacher:profiles!bookings_teacher_id_fkey(*)`
     )
     .eq("id", bookingId)
     .single();
@@ -28,8 +28,15 @@ export default async function ReviewPage({
 
   const booking = bookingRaw as unknown as Booking & {
     teacher: Profile;
-    teacher_profile: TeacherProfile;
   };
+
+  // Fetch teacher profile separately (no direct FK from bookings)
+  const { data: teacherProfileRaw } = await supabase
+    .from("teacher_profiles")
+    .select("headline")
+    .eq("user_id", booking.teacher_id)
+    .single();
+  const teacherProfile = teacherProfileRaw as unknown as { headline: string | null } | null;
 
   // Verify learner
   if (booking.learner_id !== user.id) redirect("/bookings");
@@ -61,7 +68,7 @@ export default async function ReviewPage({
         teacher_id: booking.teacher_id,
         teacher_name: booking.teacher?.display_name ?? "Teacher",
         teacher_avatar: booking.teacher?.avatar_url ?? null,
-        teacher_headline: booking.teacher_profile?.headline ?? null,
+        teacher_headline: teacherProfile?.headline ?? null,
       }}
       alreadyReviewed={!!existingReview}
       nextSlots={nextSlots.map((s) => ({
