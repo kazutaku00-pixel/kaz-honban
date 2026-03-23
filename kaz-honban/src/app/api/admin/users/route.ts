@@ -54,6 +54,119 @@ export async function PATCH(request: Request) {
   return NextResponse.json({ success: true });
 }
 
+// POST — Grant or revoke role, or create teacher directly
+export async function POST(request: Request) {
+  const result = await verifyAdmin();
+  if (!result.isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const body = await request.json();
+  const { action } = body;
+  const admin = createServiceRoleClient();
+
+  // Grant role
+  if (action === "grant_role") {
+    const { userId, role } = body;
+    if (!userId || !["learner", "teacher", "admin"].includes(role)) {
+      return NextResponse.json({ error: "userId and valid role required" }, { status: 400 });
+    }
+
+    const { error } = await admin
+      .from("user_roles")
+      .insert({ user_id: userId, role } as never);
+
+    if (error && error.code !== "23505") { // ignore duplicate
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // If granting teacher, also create teacher_profiles if not exists
+    if (role === "teacher") {
+      await admin
+        .from("teacher_profiles")
+        .insert({ user_id: userId, approval_status: "approved", is_public: true } as never)
+        .select()
+        .single();
+    }
+
+    // If granting learner, also create learner_profiles if not exists
+    if (role === "learner") {
+      await admin
+        .from("learner_profiles")
+        .insert({ user_id: userId } as never)
+        .select()
+        .single();
+    }
+
+    return NextResponse.json({ success: true });
+  }
+
+  // Revoke role
+  if (action === "revoke_role") {
+    const { userId, role } = body;
+    if (!userId || !["learner", "teacher", "admin"].includes(role)) {
+      return NextResponse.json({ error: "userId and valid role required" }, { status: 400 });
+    }
+
+    // Prevent revoking own admin role
+    if (userId === result.userId && role === "admin") {
+      return NextResponse.json({ error: "Cannot revoke your own admin role" }, { status: 400 });
+    }
+
+    const { error } = await admin
+      .from("user_roles")
+      .delete()
+      .eq("user_id", userId)
+      .eq("role", role);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // If revoking teacher, hide profile
+    if (role === "teacher") {
+      await admin
+        .from("teacher_profiles")
+        .update({ is_public: false } as never)
+        .eq("user_id", userId);
+    }
+
+    return NextResponse.json({ success: true });
+  }
+
+  // Suspend teacher
+  if (action === "suspend_teacher") {
+    const { userId } = body;
+    if (!userId) {
+      return NextResponse.json({ error: "userId required" }, { status: 400 });
+    }
+
+    await admin
+      .from("teacher_profiles")
+      .update({ approval_status: "suspended", is_public: false } as never)
+      .eq("user_id", userId);
+
+    return NextResponse.json({ success: true });
+  }
+
+  // Reactivate teacher
+  if (action === "reactivate_teacher") {
+    const { userId } = body;
+    if (!userId) {
+      return NextResponse.json({ error: "userId required" }, { status: 400 });
+    }
+
+    await admin
+      .from("teacher_profiles")
+      .update({ approval_status: "approved", is_public: true } as never)
+      .eq("user_id", userId);
+
+    return NextResponse.json({ success: true });
+  }
+
+  return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+}
+
 // PUT — Change booking status (used by booking status changer component)
 export async function PUT(request: Request) {
   const result = await verifyAdmin();
