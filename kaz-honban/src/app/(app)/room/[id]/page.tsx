@@ -337,7 +337,7 @@ export default function VideoRoomPage() {
 
   // Joined - show Daily iframe
   if (phase === "joined" && roomData) {
-    const iframeSrc = `${roomData.url}?t=${roomData.token}`;
+    const iframeSrc = `${roomData.url}?t=${encodeURIComponent(roomData.token)}`;
     return (
       <div className="fixed inset-0 bg-black z-50 flex flex-col">
         {/* Top bar */}

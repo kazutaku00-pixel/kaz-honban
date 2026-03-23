@@ -56,7 +56,7 @@ export async function createMeetingToken(
         user_id: userId,
         user_name: userName,
         exp: Math.floor(expiresAt.getTime() / 1000),
-        is_owner: false,
+        is_owner: true,
       },
     }),
   });
