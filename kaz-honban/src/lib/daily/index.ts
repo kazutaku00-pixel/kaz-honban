@@ -9,12 +9,17 @@ function getDailyApiKey(): string {
 }
 
 export async function createDailyRoom(bookingId: string, expiresAt: Date) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  try {
   const res = await fetch(`${DAILY_API_URL}/rooms`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${getDailyApiKey()}`,
     },
+    signal: controller.signal,
     body: JSON.stringify({
       name: `nihongo-${bookingId.slice(0, 8)}`,
       privacy: "private",
@@ -36,6 +41,9 @@ export async function createDailyRoom(bookingId: string, expiresAt: Date) {
   }
 
   return res.json() as Promise<{ name: string; url: string }>;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function createMeetingToken(
@@ -44,28 +52,36 @@ export async function createMeetingToken(
   userName: string,
   expiresAt: Date
 ) {
-  const res = await fetch(`${DAILY_API_URL}/meeting-tokens`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getDailyApiKey()}`,
-    },
-    body: JSON.stringify({
-      properties: {
-        room_name: roomName,
-        user_id: userId,
-        user_name: userName,
-        exp: Math.floor(expiresAt.getTime() / 1000),
-        is_owner: true,
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const res = await fetch(`${DAILY_API_URL}/meeting-tokens`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getDailyApiKey()}`,
       },
-    }),
-  });
+      signal: controller.signal,
+      body: JSON.stringify({
+        properties: {
+          room_name: roomName,
+          user_id: userId,
+          user_name: userName,
+          exp: Math.floor(expiresAt.getTime() / 1000),
+          is_owner: true,
+        },
+      }),
+    });
 
-  if (!res.ok) {
-    const error = await res.text();
-    throw new Error(`Failed to create meeting token: ${error}`);
+    if (!res.ok) {
+      const error = await res.text();
+      throw new Error(`Failed to create meeting token: ${error}`);
+    }
+
+    const data = (await res.json()) as { token: string };
+    return data.token;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const data = (await res.json()) as { token: string };
-  return data.token;
 }
