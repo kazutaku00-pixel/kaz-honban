@@ -9,8 +9,6 @@ import {
   Plus,
   X,
   Loader2,
-  Ban,
-  CheckCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -73,28 +71,6 @@ export function UserRoleManager({
       const data = await res.json();
       setError(data.error);
     }
-    setLoading(null);
-  }
-
-  async function suspendTeacher() {
-    setLoading("suspend");
-    const res = await fetch("/api/admin/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "suspend_teacher", userId }),
-    });
-    if (res.ok) router.refresh();
-    setLoading(null);
-  }
-
-  async function reactivateTeacher() {
-    setLoading("reactivate");
-    const res = await fetch("/api/admin/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "reactivate_teacher", userId }),
-    });
-    if (res.ok) router.refresh();
     setLoading(null);
   }
 
@@ -162,39 +138,6 @@ export function UserRoleManager({
               </button>
             );
           })}
-        </div>
-      )}
-
-      {/* Teacher suspend/reactivate */}
-      {roles.includes("teacher") && hasTeacherProfile && (
-        <div>
-          {teacherApprovalStatus === "suspended" ? (
-            <button
-              onClick={reactivateTeacher}
-              disabled={loading !== null}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500/10 text-green-400 hover:bg-green-500/20 transition disabled:opacity-30"
-            >
-              {loading === "reactivate" ? (
-                <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <CheckCircle size={12} />
-              )}
-              Reactivate Teacher
-            </button>
-          ) : teacherApprovalStatus === "approved" ? (
-            <button
-              onClick={suspendTeacher}
-              disabled={loading !== null}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition disabled:opacity-30"
-            >
-              {loading === "suspend" ? (
-                <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <Ban size={12} />
-              )}
-              Suspend Teacher
-            </button>
-          ) : null}
         </div>
       )}
 

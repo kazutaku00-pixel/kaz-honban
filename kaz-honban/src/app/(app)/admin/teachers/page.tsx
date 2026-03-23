@@ -1,6 +1,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { TeacherActions } from "@/components/admin/teacher-actions";
+import { TeacherAdminActions } from "@/components/admin/teacher-admin-actions";
 import { Star } from "lucide-react";
 import type { TeacherApprovalStatus } from "@/types/database";
 
@@ -33,15 +34,23 @@ export default async function AdminTeachersPage({
     query = query.eq("approval_status", "submitted");
   } else if (tab === "approved") {
     query = query.eq("approval_status", "approved");
+  } else if (tab === "suspended") {
+    query = query.eq("approval_status", "suspended");
+  } else if (tab === "rejected") {
+    query = query.eq("approval_status", "rejected");
   }
-  // "all" tab — no filter
 
   const { data: teachersRaw, error } = await query;
   const teachers = teachersRaw as unknown as {
     id: string;
     user_id: string;
     headline: string | null;
-    approval_status: string;
+    bio: string | null;
+    categories: string[];
+    languages: string[];
+    levels: string[];
+    approval_status: TeacherApprovalStatus;
+    is_public: boolean;
     avg_rating: number;
     review_count: number;
     total_lessons: number;
@@ -51,14 +60,16 @@ export default async function AdminTeachersPage({
   }[] | null;
 
   const tabs = [
-    { key: "pending", label: "Pending Review" },
+    { key: "pending", label: "Pending" },
     { key: "approved", label: "Approved" },
+    { key: "suspended", label: "Suspended" },
+    { key: "rejected", label: "Rejected" },
     { key: "all", label: "All" },
   ];
 
   return (
     <div className="md:ml-56">
-      <h1 className="text-2xl font-bold text-text-primary mb-6">
+      <h1 className="text-2xl font-bold text-text-primary mb-6 font-[family-name:var(--font-display)]">
         Teachers Management
       </h1>
 
@@ -86,7 +97,6 @@ export default async function AdminTeachersPage({
         </div>
       )}
 
-      {/* Teacher list */}
       <div className="space-y-3">
         {teachers && teachers.length === 0 && (
           <div className="text-center py-12 text-text-muted">
@@ -95,27 +105,31 @@ export default async function AdminTeachersPage({
         )}
 
         {teachers?.map((teacher) => {
-          const profile = teacher.profile as {
-            display_name: string;
-            email: string;
-            avatar_url: string | null;
-          };
-          const badge = STATUS_BADGES[teacher.approval_status as TeacherApprovalStatus];
+          const profile = teacher.profile;
+          const badge = STATUS_BADGES[teacher.approval_status];
 
           return (
             <div
               key={teacher.id}
-              className="bg-bg-secondary rounded-xl border border-border p-4"
+              className="bg-bg-secondary rounded-xl border border-border p-5 space-y-3"
             >
+              {/* Header row */}
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                {/* Avatar + info */}
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent text-sm font-semibold flex-shrink-0">
-                    {profile?.display_name?.charAt(0)?.toUpperCase() || "?"}
-                  </div>
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt={profile.display_name}
+                      className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl bg-gold/20 flex items-center justify-center text-gold text-lg font-semibold flex-shrink-0">
+                      {profile?.display_name?.charAt(0)?.toUpperCase() || "?"}
+                    </div>
+                  )}
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-text-primary truncate">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-text-primary">
                         {profile?.display_name || "Unknown"}
                       </span>
                       <span
@@ -126,36 +140,58 @@ export default async function AdminTeachersPage({
                       >
                         {badge?.label}
                       </span>
+                      {teacher.is_public && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/10 text-green-400">
+                          Public
+                        </span>
+                      )}
                     </div>
-                    <div className="text-xs text-text-muted truncate">
-                      {profile?.email}
-                    </div>
+                    <div className="text-xs text-text-muted">{profile?.email}</div>
                   </div>
                 </div>
 
                 {/* Stats */}
-                <div className="flex items-center gap-4 text-xs text-text-secondary">
+                <div className="flex items-center gap-4 text-xs text-text-secondary shrink-0">
                   <div className="flex items-center gap-1">
-                    <Star size={12} className="text-gold" />
+                    <Star size={12} className="text-gold fill-gold" />
                     <span>{teacher.avg_rating?.toFixed(1) || "—"}</span>
+                    <span className="text-text-muted">({teacher.review_count})</span>
                   </div>
                   <span>{teacher.total_lessons ?? 0} lessons</span>
-                  <span className="hidden sm:inline">
-                    ¥{teacher.hourly_rate?.toLocaleString()}/hr
-                  </span>
+                  <span>${teacher.hourly_rate}/hr</span>
                 </div>
+              </div>
 
-                {/* Actions */}
+              {/* Profile details */}
+              {teacher.headline && (
+                <p className="text-sm text-text-secondary">{teacher.headline}</p>
+              )}
+
+              {(teacher.categories?.length > 0 || teacher.languages?.length > 0) && (
+                <div className="flex flex-wrap gap-1.5">
+                  {teacher.categories?.map((c) => (
+                    <span key={c} className="px-2 py-0.5 rounded-full text-[10px] bg-gold/10 text-gold">
+                      {c}
+                    </span>
+                  ))}
+                  {teacher.languages?.map((l) => (
+                    <span key={l} className="px-2 py-0.5 rounded-full text-[10px] bg-accent/10 text-accent">
+                      {l}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex flex-wrap gap-2 pt-1">
                 {teacher.approval_status === "submitted" && (
                   <TeacherActions teacherId={teacher.id} />
                 )}
+                <TeacherAdminActions
+                  userId={teacher.user_id}
+                  approvalStatus={teacher.approval_status}
+                />
               </div>
-
-              {teacher.headline && (
-                <p className="mt-2 text-sm text-text-secondary line-clamp-2">
-                  {teacher.headline}
-                </p>
-              )}
             </div>
           );
         })}
