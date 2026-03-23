@@ -142,16 +142,36 @@ export function ScheduleClient({ templates: initialTemplates, slots: initialSlot
       }
 
       if (newSlots.length === 0) {
-        setError("No new slots to generate. Add templates first.");
+        setError("No new slots to generate. Check that you have templates for upcoming days and that the times haven't passed yet.");
+        return;
+      }
+
+      // De-duplicate: check existing slots for this teacher in the date range
+      const rangeStart = newSlots[0].start_at;
+      const rangeEnd = newSlots[newSlots.length - 1].end_at;
+      const { data: existingSlots } = await supabase
+        .from("availability_slots")
+        .select("start_at")
+        .eq("teacher_id", userId)
+        .gte("start_at", rangeStart)
+        .lte("start_at", rangeEnd);
+
+      const existingSet = new Set(
+        (existingSlots ?? []).map((s: { start_at: string }) => s.start_at)
+      );
+      const uniqueSlots = newSlots.filter((s) => !existingSet.has(s.start_at));
+
+      if (uniqueSlots.length === 0) {
+        setError("All slots already exist for the next 7 days.");
         return;
       }
 
       const { error: insertError } = await supabase
         .from("availability_slots")
-        .insert(newSlots as never[]);
+        .insert(uniqueSlots as never[]);
 
       if (insertError) {
-        setError("Failed to generate some slots (may already exist)");
+        setError("Failed to generate slots");
       }
 
       router.refresh();
