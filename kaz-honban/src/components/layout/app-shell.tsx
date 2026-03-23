@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@/components/providers/user-provider";
 import { useI18n, LanguageToggle } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 const learnerNav = [
   { href: "/dashboard", labelKey: "nav.home", icon: Home },
@@ -93,6 +94,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="flex items-center gap-3">
+          <NotificationBell />
           <LanguageToggle />
           {profile && (
             <div className="flex items-center gap-2">
