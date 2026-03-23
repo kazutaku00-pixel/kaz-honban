@@ -43,6 +43,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { profile, roles } = useUser();
   const { t } = useI18n();
 
+  const isAdmin = pathname.startsWith("/admin");
+
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -124,8 +126,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Desktop layout with sidebar */}
       <div className="flex">
-        {/* Desktop sidebar */}
-        <aside className="hidden md:flex flex-col w-60 min-h-[calc(100vh-4rem)] border-r border-border bg-bg-secondary/50 p-4 gap-1 sticky top-16 h-[calc(100vh-4rem)]">
+        {/* Desktop sidebar — hidden on admin pages (admin has its own nav) */}
+        <aside className={cn("hidden md:flex flex-col w-60 min-h-[calc(100vh-4rem)] border-r border-border bg-bg-secondary/50 p-4 gap-1 sticky top-16 h-[calc(100vh-4rem)]", isAdmin && "md:hidden")}>
           {navItems.map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(item.href + "/");
@@ -165,8 +167,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1 pb-20 md:pb-0">{children}</main>
       </div>
 
-      {/* Mobile bottom navigation */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-bg-secondary/90 backdrop-blur-xl border-t border-border safe-area-bottom">
+      {/* Mobile bottom navigation — hidden on admin pages */}
+      <nav className={cn("md:hidden fixed bottom-0 inset-x-0 z-40 bg-bg-secondary/90 backdrop-blur-xl border-t border-border safe-area-bottom", isAdmin && "hidden")}>
         <div className="flex items-center justify-around h-16">
           {navItems.map((item) => {
             const isActive =
