@@ -2,18 +2,19 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { User, Calendar, Star, Play } from "lucide-react";
+import { User, Calendar, Star } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 interface TabItem {
   id: string;
-  label: string;
+  labelKey: string;
   icon: React.ComponentType<{ size?: number }>;
 }
 
 const TABS: TabItem[] = [
-  { id: "about", label: "About", icon: User },
-  { id: "schedule", label: "Schedule", icon: Calendar },
-  { id: "reviews", label: "Reviews", icon: Star },
+  { id: "about", labelKey: "detail.tabAbout", icon: User },
+  { id: "schedule", labelKey: "detail.tabSchedule", icon: Calendar },
+  { id: "reviews", labelKey: "detail.tabReviews", icon: Star },
 ];
 
 interface TeacherDetailTabsProps {
@@ -30,6 +31,7 @@ export function TeacherDetailTabs({
   reviewCount,
 }: TeacherDetailTabsProps) {
   const [activeTab, setActiveTab] = useState("about");
+  const { t } = useI18n();
 
   return (
     <div>
@@ -48,7 +50,7 @@ export function TeacherDetailTabs({
             )}
           >
             <tab.icon size={16} />
-            {tab.label}
+            {t(tab.labelKey)}
             {tab.id === "reviews" && reviewCount > 0 && (
               <span className="text-xs text-text-muted">({reviewCount})</span>
             )}

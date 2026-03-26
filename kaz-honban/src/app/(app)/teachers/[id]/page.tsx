@@ -7,6 +7,7 @@ import { CATEGORIES, LANGUAGES, LEVELS } from "@/lib/validations";
 import { AvailableSlots } from "@/components/teachers/available-slots";
 import { TeacherDetailTabs } from "@/components/teachers/teacher-detail-tabs";
 import { IntroVideoPlayer } from "@/components/teachers/intro-video-player";
+import { T } from "@/components/i18n-text";
 import type { TeacherWithProfile, Review, Profile } from "@/types/database";
 import type { Metadata } from "next";
 
@@ -97,7 +98,7 @@ export default async function TeacherDetailPage({ params }: PageProps) {
       {/* Bio */}
       {t.bio && (
         <div className="bg-bg-secondary rounded-2xl border border-border p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-2">About Me</h3>
+          <h3 className="text-sm font-semibold text-text-primary mb-2"><T k="detail.aboutMe" /></h3>
           <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">
             {t.bio}
           </p>
@@ -110,7 +111,7 @@ export default async function TeacherDetailPage({ params }: PageProps) {
           {t.teaching_style && (
             <div className="bg-bg-secondary rounded-2xl border border-border p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-2">
-                Teaching Style
+                <T k="detail.teachingStyle" />
               </h3>
               <p className="text-sm text-text-secondary leading-relaxed">
                 {t.teaching_style}
@@ -120,7 +121,7 @@ export default async function TeacherDetailPage({ params }: PageProps) {
           {t.certifications && (
             <div className="bg-bg-secondary rounded-2xl border border-border p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-2">
-                Certifications
+                <T k="detail.certifications" />
               </h3>
               <p className="text-sm text-text-secondary leading-relaxed">
                 {t.certifications}
@@ -135,7 +136,7 @@ export default async function TeacherDetailPage({ params }: PageProps) {
         <div>
           <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
             <Play size={16} className="text-accent" />
-            Introduction Video
+            <T k="detail.introVideo" />
           </h3>
           <IntroVideoPlayer
             src={t.intro_video_url!}
@@ -158,7 +159,7 @@ export default async function TeacherDetailPage({ params }: PageProps) {
     <div>
       {reviewList.length === 0 ? (
         <p className="text-text-muted text-sm py-8 text-center">
-          No reviews yet
+          <T k="detail.noReviews" />
         </p>
       ) : (
         <div className="space-y-4">
@@ -221,7 +222,7 @@ export default async function TeacherDetailPage({ params }: PageProps) {
           href="/teachers"
           className="text-sm text-text-secondary hover:text-text-primary transition-colors"
         >
-          &larr; Back to Teachers
+          &larr; <T k="detail.backToTeachers" />
         </Link>
       </div>
 
@@ -267,13 +268,13 @@ export default async function TeacherDetailPage({ params }: PageProps) {
                   {t.avg_rating.toFixed(1)}
                 </span>
                 <span className="text-sm text-text-muted">
-                  ({t.review_count} reviews)
+                  ({t.review_count} <T k="detail.reviews" />)
                 </span>
               </div>
               <div className="flex items-center gap-1">
                 <BookOpen size={16} className="text-text-muted" />
                 <span className="text-sm text-text-secondary">
-                  {t.total_lessons} lessons
+                  {t.total_lessons} <T k="detail.lessons" />
                 </span>
               </div>
             </div>
@@ -355,7 +356,7 @@ export default async function TeacherDetailPage({ params }: PageProps) {
             href="#available-slots"
             className="flex-1 max-w-[200px] py-3 rounded-xl text-sm font-semibold text-center bg-accent hover:bg-accent-hover text-white transition-colors"
           >
-            Book a Lesson
+            <T k="detail.bookLesson" />
           </a>
         </div>
       </div>

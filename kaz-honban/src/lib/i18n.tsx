@@ -175,6 +175,20 @@ const translations: Record<Locale, Record<string, string>> = {
     "teachers.level": "Level",
     "teachers.sort": "Sort",
 
+    // Teacher detail page
+    "detail.backToTeachers": "Back to Teachers",
+    "detail.reviews": "reviews",
+    "detail.lessons": "lessons",
+    "detail.aboutMe": "About Me",
+    "detail.teachingStyle": "Teaching Style",
+    "detail.certifications": "Certifications",
+    "detail.introVideo": "Introduction Video",
+    "detail.noReviews": "No reviews yet",
+    "detail.bookLesson": "Book a Lesson",
+    "detail.tabAbout": "About",
+    "detail.tabSchedule": "Schedule",
+    "detail.tabReviews": "Reviews",
+
     // Category labels
     "cat.daily_conversation": "Daily Conversation",
     "cat.business": "Business Japanese",
@@ -392,6 +406,20 @@ const translations: Record<Locale, Record<string, string>> = {
     "teachers.language": "言語",
     "teachers.level": "レベル",
     "teachers.sort": "並び替え",
+
+    // Teacher detail page
+    "detail.backToTeachers": "先生一覧に戻る",
+    "detail.reviews": "件のレビュー",
+    "detail.lessons": "レッスン",
+    "detail.aboutMe": "自己紹介",
+    "detail.teachingStyle": "指導スタイル",
+    "detail.certifications": "資格・証明書",
+    "detail.introVideo": "紹介動画",
+    "detail.noReviews": "まだレビューはありません",
+    "detail.bookLesson": "レッスンを予約",
+    "detail.tabAbout": "紹介",
+    "detail.tabSchedule": "スケジュール",
+    "detail.tabReviews": "レビュー",
 
     // Category labels
     "cat.daily_conversation": "日常会話",
