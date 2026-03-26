@@ -52,8 +52,11 @@ export function TeacherProfileFormClient({
   const router = useRouter();
   const { t } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoProgress, setVideoProgress] = useState("");
   const [headline, setHeadline] = useState(existingProfile?.headline ?? "");
   const [bio, setBio] = useState(existingProfile?.bio ?? "");
   const [hourlyRate, setHourlyRate] = useState(existingProfile?.hourly_rate ?? 15);
@@ -101,6 +104,59 @@ export function TeacherProfileFormClient({
       setError("Failed to upload avatar");
     } finally {
       setUploadingAvatar(false);
+    }
+  }
+
+  async function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Client-side validation
+    if (file.size > 50 * 1024 * 1024) {
+      setError(t("profile.videoTooLarge"));
+      return;
+    }
+
+    setUploadingVideo(true);
+    setVideoProgress(t("profile.videoUploading"));
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/intro-video", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to upload video");
+        return;
+      }
+
+      setIntroVideoUrl(data.video_url);
+      setVideoProgress("");
+      router.refresh();
+    } catch {
+      setError("Failed to upload video");
+    } finally {
+      setUploadingVideo(false);
+      setVideoProgress("");
+    }
+  }
+
+  async function handleVideoDelete() {
+    setError(null);
+    try {
+      const res = await fetch("/api/intro-video", { method: "DELETE" });
+      if (res.ok) {
+        setIntroVideoUrl("");
+        router.refresh();
+      }
+    } catch {
+      setError("Failed to delete video");
     }
   }
 
@@ -457,18 +513,85 @@ export function TeacherProfileFormClient({
             className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary placeholder:text-text-muted resize-none focus:outline-none focus:border-gold/50 transition"
           />
         </div>
-        <div>
-          <label className="text-sm text-text-secondary mb-1 flex items-center gap-1">
+        <div className="space-y-3">
+          <label className="text-sm text-text-secondary flex items-center gap-1">
             <Video size={14} />
             {t("profile.introVideo")}
           </label>
+
+          {/* Current video preview */}
+          {introVideoUrl && (
+            <div className="rounded-xl border border-border overflow-hidden">
+              {isDirectVideo(introVideoUrl) ? (
+                <video
+                  src={introVideoUrl}
+                  controls
+                  className="w-full aspect-video bg-black"
+                  preload="metadata"
+                />
+              ) : extractYouTubeId(introVideoUrl) ? (
+                <iframe
+                  src={`https://www.youtube.com/embed/${extractYouTubeId(introVideoUrl)}`}
+                  title="Intro video"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+                  allowFullScreen
+                  className="w-full aspect-video"
+                />
+              ) : null}
+            </div>
+          )}
+
+          {/* Upload button */}
           <input
-            type="url"
-            value={introVideoUrl}
-            onChange={(e) => setIntroVideoUrl(e.target.value)}
-            placeholder="https://youtube.com/..."
-            className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-gold/50 transition"
+            ref={videoInputRef}
+            type="file"
+            accept="video/mp4,video/webm,video/quicktime"
+            onChange={handleVideoUpload}
+            className="hidden"
           />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => videoInputRef.current?.click()}
+              disabled={uploadingVideo}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gold/10 text-gold text-sm font-medium hover:bg-gold/20 transition disabled:opacity-50"
+            >
+              {uploadingVideo ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  {videoProgress}
+                </>
+              ) : (
+                <>
+                  <Video size={16} />
+                  {t("profile.uploadVideo")}
+                </>
+              )}
+            </button>
+            {introVideoUrl && (
+              <button
+                type="button"
+                onClick={handleVideoDelete}
+                className="px-4 py-3 rounded-xl bg-red-500/10 text-red-400 text-sm font-medium hover:bg-red-500/20 transition"
+              >
+                {t("profile.deleteVideo")}
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-text-muted">{t("profile.videoHint")}</p>
+
+          {/* YouTube URL fallback */}
+          <div className="pt-2 border-t border-border">
+            <label className="text-xs text-text-muted mb-1 block">{t("profile.orYoutubeUrl")}</label>
+            <input
+              type="url"
+              value={isDirectVideo(introVideoUrl) ? "" : introVideoUrl}
+              onChange={(e) => setIntroVideoUrl(e.target.value)}
+              placeholder="https://youtube.com/..."
+              disabled={isDirectVideo(introVideoUrl)}
+              className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-gold/50 transition disabled:opacity-40"
+            />
+          </div>
         </div>
       </div>
 
@@ -517,4 +640,20 @@ export function TeacherProfileFormClient({
       </div>
     </div>
   );
+}
+
+function isDirectVideo(url: string): boolean {
+  if (!url) return false;
+  return /\.(mp4|webm|mov)(\?.*)?$/i.test(url) || url.includes("/videos/");
+}
+
+function extractYouTubeId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?/]+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+  return null;
 }

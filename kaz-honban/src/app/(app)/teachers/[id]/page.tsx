@@ -83,10 +83,12 @@ export default async function TeacherDetailPage({ params }: PageProps) {
   const profile = t.profile;
   const initial = (profile.display_name ?? "?")[0].toUpperCase();
 
-  // Extract YouTube video ID if present
-  const youtubeId = t.intro_video_url
+  // Determine video type
+  const hasDirectVideo = t.intro_video_url ? isDirectVideo(t.intro_video_url) : false;
+  const youtubeId = t.intro_video_url && !hasDirectVideo
     ? extractYouTubeId(t.intro_video_url)
     : null;
+  const hasVideo = hasDirectVideo || !!youtubeId;
 
   // ─── About Tab Content ───
   const aboutContent = (
@@ -128,20 +130,29 @@ export default async function TeacherDetailPage({ params }: PageProps) {
       )}
 
       {/* Intro video */}
-      {youtubeId && (
+      {hasVideo && (
         <div>
           <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
             <Play size={16} className="text-accent" />
             Introduction Video
           </h3>
           <div className="aspect-video rounded-2xl overflow-hidden border border-border">
-            <iframe
-              src={`https://www.youtube.com/embed/${youtubeId}`}
-              title="Teacher introduction video"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="w-full h-full"
-            />
+            {hasDirectVideo ? (
+              <video
+                src={t.intro_video_url!}
+                controls
+                preload="metadata"
+                className="w-full h-full bg-black"
+              />
+            ) : (
+              <iframe
+                src={`https://www.youtube.com/embed/${youtubeId}`}
+                title="Teacher introduction video"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full"
+              />
+            )}
           </div>
         </div>
       )}
@@ -363,6 +374,11 @@ export default async function TeacherDetailPage({ params }: PageProps) {
       </div>
     </div>
   );
+}
+
+function isDirectVideo(url: string): boolean {
+  if (!url) return false;
+  return /\.(mp4|webm|mov)(\?.*)?$/i.test(url) || url.includes("/videos/");
 }
 
 function extractYouTubeId(url: string): string | null {
