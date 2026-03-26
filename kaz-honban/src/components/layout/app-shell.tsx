@@ -22,7 +22,6 @@ import { createClient } from "@/lib/supabase/client";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 
 const learnerNav = [
-  { href: "/dashboard", labelKey: "nav.home", icon: Home },
   { href: "/teachers", labelKey: "nav.search", icon: Search },
   { href: "/bookings", labelKey: "nav.bookings", icon: CalendarDays },
   { href: "/favorites", labelKey: "nav.favorites", icon: Heart },
@@ -53,7 +52,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const isTeacher = roles.includes("teacher");
   const navItems = isTeacher ? teacherNav : learnerNav;
-  const homeHref = isTeacher ? "/teacher/dashboard" : "/dashboard";
+  const homeHref = isTeacher ? "/teacher/dashboard" : "/teachers";
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -70,30 +69,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </span>
           )}
         </Link>
-
-        <nav className="flex items-center gap-1">
-          {navItems.map((item) => {
-            const isActive =
-              pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                  isActive
-                    ? isTeacher
-                      ? "text-gold bg-gold/10"
-                      : "text-accent bg-accent-subtle"
-                    : "text-text-secondary hover:text-text-primary hover:bg-white/5"
-                )}
-              >
-                <item.icon size={16} />
-                {t(item.labelKey)}
-              </Link>
-            );
-          })}
-        </nav>
 
         <div className="flex items-center gap-3">
           <NotificationBell />

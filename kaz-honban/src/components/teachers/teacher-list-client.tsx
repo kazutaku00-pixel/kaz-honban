@@ -1,18 +1,21 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import Link from "next/link";
 import { TeacherCard } from "./teacher-card";
 import { TeacherFilter, type FilterState } from "./teacher-filter";
-import type { TeacherWithProfile } from "@/types/database";
+import { NextLessonBanner } from "./next-lesson-banner";
+import type { TeacherWithProfile, Booking, Profile } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 
 const ITEMS_PER_PAGE = 12;
 
 interface TeacherListClientProps {
   initialTeachers: TeacherWithProfile[];
+  nextBooking?: (Booking & { teacher: Profile }) | null;
 }
 
-export function TeacherListClient({ initialTeachers }: TeacherListClientProps) {
+export function TeacherListClient({ initialTeachers, nextBooking }: TeacherListClientProps) {
   const [filters, setFilters] = useState<FilterState>({
     keyword: "",
     category: "",
@@ -139,6 +142,9 @@ export function TeacherListClient({ initialTeachers }: TeacherListClientProps) {
 
   return (
     <div>
+      {/* Next lesson banner */}
+      {nextBooking && <NextLessonBanner booking={nextBooking} />}
+
       <TeacherFilter filters={filters} onChange={handleFilterChange} />
 
       {/* Results count */}

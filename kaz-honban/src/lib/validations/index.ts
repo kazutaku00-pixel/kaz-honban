@@ -86,6 +86,19 @@ export const LEVELS = [
   { value: "n1", label: "JLPT N1" },
 ] as const;
 
+export const LEARNING_GOALS = [
+  { value: "daily_conversation", label: "Daily Conversation" },
+  { value: "jlpt", label: "JLPT Preparation" },
+  { value: "business", label: "Business Japanese" },
+  { value: "travel", label: "Travel Japanese" },
+  { value: "anime_manga", label: "Anime & Manga" },
+  { value: "reading_writing", label: "Reading & Writing" },
+  { value: "pronunciation", label: "Pronunciation" },
+  { value: "keigo", label: "Keigo (Polite)" },
+  { value: "academic", label: "Academic Japanese" },
+  { value: "culture", label: "Culture & Customs" },
+] as const;
+
 export const LESSON_REPORT_TEMPLATES = [
   { value: "grammar", label: "Grammar Practice" },
   { value: "conversation", label: "Conversation Practice" },

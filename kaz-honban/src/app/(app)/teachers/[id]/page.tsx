@@ -2,9 +2,10 @@ import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Star, Heart, Globe, GraduationCap, BookOpen, Award, Play } from "lucide-react";
+import { Star, Globe, GraduationCap, BookOpen, Award, Play } from "lucide-react";
 import { CATEGORIES, LANGUAGES, LEVELS } from "@/lib/validations";
 import { AvailableSlots } from "@/components/teachers/available-slots";
+import { TeacherDetailTabs } from "@/components/teachers/teacher-detail-tabs";
 import type { TeacherWithProfile, Review, Profile } from "@/types/database";
 import type { Metadata } from "next";
 
@@ -87,29 +88,148 @@ export default async function TeacherDetailPage({ params }: PageProps) {
     ? extractYouTubeId(t.intro_video_url)
     : null;
 
+  // ─── About Tab Content ───
+  const aboutContent = (
+    <div className="space-y-6">
+      {/* Bio */}
+      {t.bio && (
+        <div className="bg-bg-secondary rounded-2xl border border-border p-5">
+          <h3 className="text-sm font-semibold text-text-primary mb-2">About Me</h3>
+          <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">
+            {t.bio}
+          </p>
+        </div>
+      )}
+
+      {/* Teaching Style & Certifications */}
+      {(t.teaching_style || t.certifications) && (
+        <div className="grid gap-4 md:grid-cols-2">
+          {t.teaching_style && (
+            <div className="bg-bg-secondary rounded-2xl border border-border p-5">
+              <h3 className="text-sm font-semibold text-text-primary mb-2">
+                Teaching Style
+              </h3>
+              <p className="text-sm text-text-secondary leading-relaxed">
+                {t.teaching_style}
+              </p>
+            </div>
+          )}
+          {t.certifications && (
+            <div className="bg-bg-secondary rounded-2xl border border-border p-5">
+              <h3 className="text-sm font-semibold text-text-primary mb-2">
+                Certifications
+              </h3>
+              <p className="text-sm text-text-secondary leading-relaxed">
+                {t.certifications}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Intro video */}
+      {youtubeId && (
+        <div>
+          <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+            <Play size={16} className="text-accent" />
+            Introduction Video
+          </h3>
+          <div className="aspect-video rounded-2xl overflow-hidden border border-border">
+            <iframe
+              src={`https://www.youtube.com/embed/${youtubeId}`}
+              title="Teacher introduction video"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="w-full h-full"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // ─── Schedule Tab Content ───
+  const scheduleContent = (
+    <div className="bg-bg-secondary rounded-2xl border border-border p-5 md:p-6">
+      <AvailableSlots teacherId={t.user_id} />
+    </div>
+  );
+
+  // ─── Reviews Tab Content ───
+  const reviewsContent = (
+    <div>
+      {reviewList.length === 0 ? (
+        <p className="text-text-muted text-sm py-8 text-center">
+          No reviews yet
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {reviewList.map((review) => (
+            <div
+              key={review.id}
+              className="bg-bg-secondary rounded-2xl border border-border p-5"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                {review.reviewer.avatar_url ? (
+                  <img
+                    src={review.reviewer.avatar_url}
+                    alt={review.reviewer.display_name}
+                    className="w-8 h-8 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-bg-tertiary flex items-center justify-center text-xs font-bold text-text-muted">
+                    {(review.reviewer.display_name ?? "?")[0].toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium text-text-primary">
+                    {review.reviewer.display_name}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        size={12}
+                        className={cn(
+                          i < review.rating
+                            ? "text-gold fill-gold"
+                            : "text-text-muted"
+                        )}
+                      />
+                    ))}
+                    <span className="text-xs text-text-muted ml-1">
+                      {new Date(review.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {review.comment && (
+                <p className="text-sm text-text-secondary leading-relaxed">
+                  {review.comment}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-bg-primary pb-24 md:pb-12">
-      {/* Top nav */}
-      <div className="border-b border-border bg-bg-secondary/50 backdrop-blur-sm sticky top-0 z-20">
-        <div className="mx-auto max-w-7xl px-5 py-4 flex items-center justify-between">
-          <Link
-            href="/teachers"
-            className="text-sm text-text-secondary hover:text-text-primary transition-colors"
-          >
-            &larr; Back to Teachers
-          </Link>
-          <Link
-            href="/"
-            className="text-lg font-bold font-[family-name:var(--font-display)] text-text-primary"
-          >
-            NihonGo
-          </Link>
-        </div>
+      {/* Back link */}
+      <div className="mx-auto max-w-4xl px-5 pt-4">
+        <Link
+          href="/teachers"
+          className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+        >
+          &larr; Back to Teachers
+        </Link>
       </div>
 
-      <div className="mx-auto max-w-4xl px-5 py-8 md:py-12">
+      <div className="mx-auto max-w-4xl px-5 py-6 md:py-8">
         {/* Hero section */}
-        <div className="flex flex-col md:flex-row gap-6 md:gap-8 mb-10">
+        <div className="flex flex-col md:flex-row gap-6 md:gap-8 mb-8">
           {/* Avatar */}
           <div className="flex-shrink-0">
             {profile.avatar_url ? (
@@ -161,7 +281,7 @@ export default async function TeacherDetailPage({ params }: PageProps) {
             </div>
 
             {/* Pricing */}
-            <div className="mt-4 flex items-baseline gap-3">
+            <div className="mt-4 flex items-baseline gap-3 flex-wrap">
               <div className="bg-bg-secondary rounded-xl px-4 py-2 border border-border">
                 <span className="text-xl font-bold text-text-primary">
                   ${t.hourly_rate}
@@ -187,199 +307,41 @@ export default async function TeacherDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Tags: categories, languages, levels */}
-        <div className="space-y-4 mb-10">
-          {/* Categories */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <GraduationCap size={16} className="text-accent" />
-              <span className="text-xs font-medium uppercase tracking-wider text-text-muted">
-                Categories
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {t.categories.map((cat) => (
-                <span
-                  key={cat}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-accent-subtle text-accent border border-accent/20"
-                >
-                  {getLabel(cat, CATEGORIES)}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Languages */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Globe size={16} className="text-gold" />
-              <span className="text-xs font-medium uppercase tracking-wider text-text-muted">
-                Teaching Languages
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {t.languages.map((lang) => (
-                <span
-                  key={lang}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gold-subtle text-gold border border-gold/20"
-                >
-                  {getLabel(lang, LANGUAGES)}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Levels */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Award size={16} className="text-emerald-400" />
-              <span className="text-xs font-medium uppercase tracking-wider text-text-muted">
-                Student Levels
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {t.levels.map((lvl) => (
-                <span
-                  key={lvl}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                >
-                  {getLabel(lvl, LEVELS)}
-                </span>
-              ))}
-            </div>
-          </div>
+        {/* Tags: categories, languages, levels — compact row */}
+        <div className="flex flex-wrap gap-2 mb-8">
+          {t.categories.map((cat) => (
+            <span
+              key={cat}
+              className="px-2.5 py-1 rounded-lg text-xs font-medium bg-accent-subtle text-accent border border-accent/20"
+            >
+              {getLabel(cat, CATEGORIES)}
+            </span>
+          ))}
+          {t.languages.map((lang) => (
+            <span
+              key={lang}
+              className="px-2.5 py-1 rounded-lg text-xs font-medium bg-gold-subtle text-gold border border-gold/20"
+            >
+              {getLabel(lang, LANGUAGES)}
+            </span>
+          ))}
+          {t.levels.map((lvl) => (
+            <span
+              key={lvl}
+              className="px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+            >
+              {getLabel(lvl, LEVELS)}
+            </span>
+          ))}
         </div>
 
-        {/* Bio */}
-        {t.bio && (
-          <section className="mb-10">
-            <h2 className="text-lg font-semibold text-text-primary font-[family-name:var(--font-display)] mb-3">
-              About Me
-            </h2>
-            <div className="bg-bg-secondary rounded-2xl border border-border p-5">
-              <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">
-                {t.bio}
-              </p>
-            </div>
-          </section>
-        )}
-
-        {/* Teaching style & Certifications */}
-        {(t.teaching_style || t.certifications) && (
-          <section className="mb-10 grid gap-5 md:grid-cols-2">
-            {t.teaching_style && (
-              <div className="bg-bg-secondary rounded-2xl border border-border p-5">
-                <h3 className="text-sm font-semibold text-text-primary mb-2">
-                  Teaching Style
-                </h3>
-                <p className="text-sm text-text-secondary leading-relaxed">
-                  {t.teaching_style}
-                </p>
-              </div>
-            )}
-            {t.certifications && (
-              <div className="bg-bg-secondary rounded-2xl border border-border p-5">
-                <h3 className="text-sm font-semibold text-text-primary mb-2">
-                  Certifications
-                </h3>
-                <p className="text-sm text-text-secondary leading-relaxed">
-                  {t.certifications}
-                </p>
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* Intro video */}
-        {youtubeId && (
-          <section className="mb-10">
-            <h2 className="text-lg font-semibold text-text-primary font-[family-name:var(--font-display)] mb-3">
-              <Play size={18} className="inline mr-2 -mt-0.5 text-accent" />
-              Introduction Video
-            </h2>
-            <div className="aspect-video rounded-2xl overflow-hidden border border-border">
-              <iframe
-                src={`https://www.youtube.com/embed/${youtubeId}`}
-                title="Teacher introduction video"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="w-full h-full"
-              />
-            </div>
-          </section>
-        )}
-
-        {/* Available slots */}
-        <section className="mb-10 bg-bg-secondary rounded-2xl border border-border p-5 md:p-6">
-          <AvailableSlots teacherId={t.user_id} />
-        </section>
-
-        {/* Reviews */}
-        <section className="mb-10">
-          <h2 className="text-lg font-semibold text-text-primary font-[family-name:var(--font-display)] mb-4">
-            Reviews
-            {t.review_count > 0 && (
-              <span className="text-sm font-normal text-text-muted ml-2">
-                ({t.review_count})
-              </span>
-            )}
-          </h2>
-
-          {reviewList.length === 0 ? (
-            <p className="text-text-muted text-sm py-8 text-center">
-              No reviews yet
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {reviewList.map((review) => (
-                <div
-                  key={review.id}
-                  className="bg-bg-secondary rounded-2xl border border-border p-5"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    {review.reviewer.avatar_url ? (
-                      <img
-                        src={review.reviewer.avatar_url}
-                        alt={review.reviewer.display_name}
-                        className="w-8 h-8 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-lg bg-bg-tertiary flex items-center justify-center text-xs font-bold text-text-muted">
-                        {(review.reviewer.display_name ?? "?")[0].toUpperCase()}
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-sm font-medium text-text-primary">
-                        {review.reviewer.display_name}
-                      </p>
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            size={12}
-                            className={cn(
-                              i < review.rating
-                                ? "text-gold fill-gold"
-                                : "text-text-muted"
-                            )}
-                          />
-                        ))}
-                        <span className="text-xs text-text-muted ml-1">
-                          {new Date(review.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  {review.comment && (
-                    <p className="text-sm text-text-secondary leading-relaxed">
-                      {review.comment}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+        {/* Tabbed content */}
+        <TeacherDetailTabs
+          aboutContent={aboutContent}
+          scheduleContent={scheduleContent}
+          reviewsContent={reviewsContent}
+          reviewCount={t.review_count}
+        />
       </div>
 
       {/* Floating CTA (mobile) */}

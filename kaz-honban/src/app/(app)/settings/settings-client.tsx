@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { LEVELS, LANGUAGES } from "@/lib/validations";
+import { LEVELS, LANGUAGES, LEARNING_GOALS } from "@/lib/validations";
 import type { UserRole, JapaneseLevel } from "@/types/database";
 import Link from "next/link";
 
@@ -75,7 +75,30 @@ export function SettingsClient({
   const router = useRouter();
   const [displayName, setDisplayName] = useState(initialProfile.display_name);
   const [timezone, setTimezone] = useState(initialProfile.timezone);
-  const [learningGoals, setLearningGoals] = useState(initialLearner?.learning_goals ?? "");
+  // Parse stored goals: format is "tag1,tag2,...|custom text"
+  const parseGoals = (raw: string | null) => {
+    if (!raw) return { tags: [] as string[], custom: "" };
+    const pipeIdx = raw.indexOf("|");
+    if (pipeIdx === -1) {
+      // Legacy: check if it's comma-separated tags or free text
+      const possibleTags = raw.split(",").map((s) => s.trim());
+      const allValid = possibleTags.every((t) =>
+        LEARNING_GOALS.some((g) => g.value === t)
+      );
+      if (allValid && possibleTags[0]) return { tags: possibleTags, custom: "" };
+      return { tags: [], custom: raw };
+    }
+    const tagsPart = raw.substring(0, pipeIdx);
+    const customPart = raw.substring(pipeIdx + 1);
+    return {
+      tags: tagsPart ? tagsPart.split(",").filter(Boolean) : [],
+      custom: customPart,
+    };
+  };
+
+  const initialGoals = parseGoals(initialLearner?.learning_goals ?? null);
+  const [selectedGoals, setSelectedGoals] = useState<string[]>(initialGoals.tags);
+  const [customGoal, setCustomGoal] = useState(initialGoals.custom);
   const [japaneseLevel, setJapaneseLevel] = useState(initialLearner?.japanese_level ?? "none");
   const [nativeLanguage, setNativeLanguage] = useState(initialLearner?.native_language ?? "en");
   const [saving, setSaving] = useState(false);
@@ -143,10 +166,14 @@ export function SettingsClient({
       // Update learner profile if applicable
       if (isLearner && initialLearner) {
         const userId = (await supabase.auth.getUser()).data.user!.id;
+        const goalsStr =
+          selectedGoals.length || customGoal.trim()
+            ? `${selectedGoals.join(",")}|${customGoal.trim()}`
+            : null;
         await supabase
           .from("learner_profiles")
           .update({
-            learning_goals: learningGoals.trim() || null,
+            learning_goals: goalsStr,
             japanese_level: japaneseLevel,
             native_language: nativeLanguage,
           } as never)
@@ -289,13 +316,39 @@ export function SettingsClient({
 
           <div className="space-y-3">
             <div>
-              <label className="text-sm text-text-secondary mb-1 block">Learning Goals</label>
-              <textarea
-                value={learningGoals}
-                onChange={(e) => setLearningGoals(e.target.value)}
-                placeholder="What do you want to achieve?"
-                rows={3}
-                className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary placeholder:text-text-muted resize-none focus:outline-none focus:border-accent/50 transition"
+              <label className="text-sm text-text-secondary mb-2 block">Learning Goals</label>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {LEARNING_GOALS.map((goal) => {
+                  const isSelected = selectedGoals.includes(goal.value);
+                  return (
+                    <button
+                      key={goal.value}
+                      type="button"
+                      onClick={() =>
+                        setSelectedGoals((prev) =>
+                          isSelected
+                            ? prev.filter((v) => v !== goal.value)
+                            : [...prev, goal.value]
+                        )
+                      }
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                        isSelected
+                          ? "bg-accent text-white"
+                          : "bg-white/5 text-text-secondary border border-border hover:border-border-hover hover:text-text-primary"
+                      )}
+                    >
+                      {goal.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <input
+                type="text"
+                value={customGoal}
+                onChange={(e) => setCustomGoal(e.target.value)}
+                placeholder="Other goals (optional)"
+                className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/50 transition"
               />
             </div>
 
