@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { CATEGORIES, LANGUAGES, LEVELS } from "@/lib/validations";
 import { SlidersHorizontal, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { useI18n } from "@/lib/i18n";
 
 export type SortOption = "recommended" | "rating" | "price_low" | "newest";
 
@@ -14,26 +15,6 @@ export interface FilterState {
   language: string;
   level: string;
   sort: SortOption;
-}
-
-const PRICE_RANGES = [
-  { value: "", label: "All Prices" },
-  { value: "0-15", label: "Under $15" },
-  { value: "15-25", label: "$15 - $25" },
-  { value: "25-40", label: "$25 - $40" },
-  { value: "40-100", label: "$40+" },
-];
-
-const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: "recommended", label: "Recommended" },
-  { value: "rating", label: "Highest Rating" },
-  { value: "price_low", label: "Lowest Price" },
-  { value: "newest", label: "Newest" },
-];
-
-interface TeacherFilterProps {
-  filters: FilterState;
-  onChange: (filters: FilterState) => void;
 }
 
 function Dropdown({
@@ -103,23 +84,44 @@ function Dropdown({
   );
 }
 
+interface TeacherFilterProps {
+  filters: FilterState;
+  onChange: (filters: FilterState) => void;
+}
+
 export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
+  const { t } = useI18n();
   const update = (partial: Partial<FilterState>) =>
     onChange({ ...filters, ...partial });
 
   const categoryOptions = [
-    { value: "", label: "All Categories" },
-    ...CATEGORIES.map((c) => ({ value: c.value, label: c.label })),
+    { value: "", label: t("teachers.allCategories") },
+    ...CATEGORIES.map((c) => ({ value: c.value, label: t(`cat.${c.value}`) })),
+  ];
+
+  const priceRanges = [
+    { value: "", label: t("teachers.allPrices") },
+    { value: "0-15", label: t("teachers.under") },
+    { value: "15-25", label: "$15 - $25" },
+    { value: "25-40", label: "$25 - $40" },
+    { value: "40-100", label: "$40+" },
   ];
 
   const languageOptions = [
-    { value: "", label: "All Languages" },
+    { value: "", label: t("teachers.allLanguages") },
     ...LANGUAGES.map((l) => ({ value: l.value, label: l.label })),
   ];
 
   const levelOptions = [
-    { value: "", label: "All Levels" },
+    { value: "", label: t("teachers.allLevels") },
     ...LEVELS.map((l) => ({ value: l.value, label: l.label })),
+  ];
+
+  const sortOptions: { value: SortOption; label: string }[] = [
+    { value: "recommended", label: t("teachers.recommended") },
+    { value: "rating", label: t("teachers.highestRating") },
+    { value: "price_low", label: t("teachers.lowestPrice") },
+    { value: "newest", label: t("teachers.newest") },
   ];
 
   return (
@@ -128,7 +130,7 @@ export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
       <div className="relative">
         <input
           type="text"
-          placeholder="Search teachers by name or keyword..."
+          placeholder={t("teachers.searchPlaceholder")}
           value={filters.keyword}
           onChange={(e) => update({ keyword: e.target.value })}
           className={cn(
@@ -166,27 +168,27 @@ export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
       {/* Dropdowns row */}
       <div className="flex gap-2 flex-wrap">
         <Dropdown
-          label="Price"
+          label={t("teachers.price")}
           value={filters.priceRange}
-          options={PRICE_RANGES}
+          options={priceRanges}
           onChange={(v) => update({ priceRange: v })}
         />
         <Dropdown
-          label="Language"
+          label={t("teachers.language")}
           value={filters.language}
           options={languageOptions}
           onChange={(v) => update({ language: v })}
         />
         <Dropdown
-          label="Level"
+          label={t("teachers.level")}
           value={filters.level}
           options={levelOptions}
           onChange={(v) => update({ level: v })}
         />
         <Dropdown
-          label="Sort"
+          label={t("teachers.sort")}
           value={filters.sort}
-          options={SORT_OPTIONS}
+          options={sortOptions}
           onChange={(v) => update({ sort: v as SortOption })}
         />
       </div>

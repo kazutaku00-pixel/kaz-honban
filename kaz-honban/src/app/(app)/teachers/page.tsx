@@ -42,17 +42,6 @@ export default async function TeachersPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 md:px-5 py-6 md:py-8">
-      {/* Page heading */}
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold font-[family-name:var(--font-display)] text-text-primary">
-          Find Your Teacher
-        </h1>
-        <p className="mt-1 text-text-secondary text-sm">
-          Browse our community of native Japanese speakers and find the perfect
-          teacher for your learning goals.
-        </p>
-      </div>
-
       <TeacherListClient
         initialTeachers={(teachers as TeacherWithProfile[]) ?? []}
         nextBooking={nextBooking}

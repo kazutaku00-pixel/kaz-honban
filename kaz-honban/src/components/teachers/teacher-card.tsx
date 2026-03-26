@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { Star, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import type { TeacherWithProfile } from "@/types/database";
-import { CATEGORIES } from "@/lib/validations";
 
 const avatarColors = [
   "from-accent to-orange-400",
@@ -17,10 +17,6 @@ const avatarColors = [
 function isNew(createdAt: string) {
   const diff = Date.now() - new Date(createdAt).getTime();
   return diff < 14 * 24 * 60 * 60 * 1000;
-}
-
-function getCategoryLabel(value: string) {
-  return CATEGORIES.find((c) => c.value === value)?.label ?? value;
 }
 
 interface TeacherCardProps {
@@ -36,6 +32,7 @@ export function TeacherCard({
   isFavorited = false,
   onToggleFavorite,
 }: TeacherCardProps) {
+  const { t } = useI18n();
   const profile = teacher.profile;
   const initial = (profile.display_name ?? "?")[0].toUpperCase();
   const colorIdx = index % avatarColors.length;
@@ -55,7 +52,7 @@ export function TeacherCard({
       {isNew(teacher.created_at) && (
         <div className="absolute -top-2 -right-2 z-10">
           <span className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-accent text-white rounded-full shadow-lg">
-            New
+            {t("teachers.new")}
           </span>
         </div>
       )}
@@ -126,7 +123,7 @@ export function TeacherCard({
               key={cat}
               className="px-2.5 py-1 text-[10px] font-medium rounded-md bg-white/5 text-text-muted whitespace-nowrap"
             >
-              {getCategoryLabel(cat)}
+              {t(`cat.${cat}`)}
             </span>
           ))}
           {teacher.categories.length > 3 && (
@@ -148,7 +145,7 @@ export function TeacherCard({
             <span className="text-xs text-text-muted"> /25min</span>
           </div>
           <span className="text-xs text-accent font-medium group-hover:underline flex items-center gap-1">
-            View Profile
+            {t("teachers.viewProfile")}
           </span>
         </div>
       </div>

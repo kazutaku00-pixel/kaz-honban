@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import Link from "next/link";
 import { TeacherCard } from "./teacher-card";
 import { TeacherFilter, type FilterState } from "./teacher-filter";
 import { NextLessonBanner } from "./next-lesson-banner";
+import { useI18n } from "@/lib/i18n";
 import type { TeacherWithProfile, Booking, Profile } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 
@@ -16,6 +16,7 @@ interface TeacherListClientProps {
 }
 
 export function TeacherListClient({ initialTeachers, nextBooking }: TeacherListClientProps) {
+  const { t } = useI18n();
   const [filters, setFilters] = useState<FilterState>({
     keyword: "",
     category: "",
@@ -142,6 +143,16 @@ export function TeacherListClient({ initialTeachers, nextBooking }: TeacherListC
 
   return (
     <div>
+      {/* Page heading */}
+      <div className="mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold font-[family-name:var(--font-display)] text-text-primary">
+          {t("teachers.title")}
+        </h1>
+        <p className="mt-1 text-text-secondary text-sm">
+          {t("teachers.subtitle")}
+        </p>
+      </div>
+
       {/* Next lesson banner */}
       {nextBooking && <NextLessonBanner booking={nextBooking} />}
 
@@ -149,17 +160,17 @@ export function TeacherListClient({ initialTeachers, nextBooking }: TeacherListC
 
       {/* Results count */}
       <p className="mt-6 mb-4 text-sm text-text-muted">
-        {filtered.length} teacher{filtered.length !== 1 ? "s" : ""} found
+        {filtered.length} {filtered.length === 1 ? t("teachers.found1") : t("teachers.found")}
       </p>
 
       {/* Teacher grid */}
       {filtered.length === 0 ? (
         <div className="text-center py-20">
           <p className="text-text-secondary text-lg mb-2">
-            No teachers found matching your filters
+            {t("teachers.noResults")}
           </p>
           <p className="text-text-muted text-sm">
-            Try adjusting your search or filters
+            {t("teachers.noResultsHint")}
           </p>
         </div>
       ) : (
@@ -184,7 +195,7 @@ export function TeacherListClient({ initialTeachers, nextBooking }: TeacherListC
                 onClick={() => setPage((p) => p + 1)}
                 className="px-6 py-3 rounded-xl text-sm font-medium border border-border text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-border-hover transition-all"
               >
-                Load More Teachers
+                {t("teachers.loadMore")}
               </button>
             </div>
           )}
