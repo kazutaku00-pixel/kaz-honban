@@ -13,9 +13,10 @@ const ITEMS_PER_PAGE = 12;
 interface TeacherListClientProps {
   initialTeachers: TeacherWithProfile[];
   nextBooking?: (Booking & { teacher: Profile }) | null;
+  slotsByTeacher?: Record<string, string[]>;
 }
 
-export function TeacherListClient({ initialTeachers, nextBooking }: TeacherListClientProps) {
+export function TeacherListClient({ initialTeachers, nextBooking, slotsByTeacher = {} }: TeacherListClientProps) {
   const { t } = useI18n();
   const [filters, setFilters] = useState<FilterState>({
     keyword: "",
@@ -24,6 +25,8 @@ export function TeacherListClient({ initialTeachers, nextBooking }: TeacherListC
     language: "",
     level: "",
     sort: "recommended",
+    dayOfWeek: "",
+    timeSlot: "",
   });
   const [page, setPage] = useState(1);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
@@ -67,6 +70,44 @@ export function TeacherListClient({ initialTeachers, nextBooking }: TeacherListC
       list = list.filter((t) => t.levels.includes(filters.level));
     }
 
+    // Time-based filter: day of week and time slot
+    if (filters.dayOfWeek || filters.timeSlot) {
+      list = list.filter((teacher) => {
+        const slots = slotsByTeacher[teacher.user_id];
+        if (!slots || slots.length === 0) return false;
+
+        return slots.some((isoStr) => {
+          const d = new Date(isoStr);
+
+          // Day of week filter
+          if (filters.dayOfWeek) {
+            if (d.getDay() !== Number(filters.dayOfWeek)) return false;
+          }
+
+          // Time slot filter (user's local hour)
+          if (filters.timeSlot) {
+            const hour = d.getHours();
+            switch (filters.timeSlot) {
+              case "morning":
+                if (hour < 6 || hour >= 12) return false;
+                break;
+              case "afternoon":
+                if (hour < 12 || hour >= 17) return false;
+                break;
+              case "evening":
+                if (hour < 17 || hour >= 21) return false;
+                break;
+              case "night":
+                if (hour < 21 && hour >= 6) return false;
+                break;
+            }
+          }
+
+          return true;
+        });
+      });
+    }
+
     // Sort
     switch (filters.sort) {
       case "rating":
@@ -99,7 +140,7 @@ export function TeacherListClient({ initialTeachers, nextBooking }: TeacherListC
     }
 
     return list;
-  }, [initialTeachers, filters]);
+  }, [initialTeachers, filters, slotsByTeacher]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice(0, page * ITEMS_PER_PAGE);

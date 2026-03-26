@@ -16,7 +16,10 @@ export default async function TeachersPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: teachers }, upcomingResult] = await Promise.all([
+  const now = new Date();
+  const weekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const [{ data: teachers }, upcomingResult, { data: openSlots }] = await Promise.all([
     supabase
       .from("teacher_profiles")
       .select("*, profile:profiles!user_id(*)")
@@ -29,10 +32,17 @@ export default async function TeachersPage() {
           .select("*, teacher:profiles!bookings_teacher_id_fkey(*)")
           .eq("learner_id", user.id)
           .in("status", ["confirmed", "in_session"])
-          .gte("scheduled_start_at", new Date().toISOString())
+          .gte("scheduled_start_at", now.toISOString())
           .order("scheduled_start_at", { ascending: true })
           .limit(1)
       : Promise.resolve({ data: null }),
+    supabase
+      .from("availability_slots")
+      .select("teacher_id, start_at")
+      .eq("status", "open")
+      .gte("start_at", now.toISOString())
+      .lt("start_at", weekLater.toISOString())
+      .order("start_at", { ascending: true }),
   ]);
 
   const nextBooking =
@@ -40,11 +50,19 @@ export default async function TeachersPage() {
       | (Booking & { teacher: Profile })
       | undefined) ?? null;
 
+  // Group open slots by teacher_id: { [teacherId]: string[] (ISO start_at) }
+  const slotsByTeacher: Record<string, string[]> = {};
+  for (const slot of (openSlots ?? []) as unknown as { teacher_id: string; start_at: string }[]) {
+    if (!slotsByTeacher[slot.teacher_id]) slotsByTeacher[slot.teacher_id] = [];
+    slotsByTeacher[slot.teacher_id].push(slot.start_at);
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-4 md:px-5 py-6 md:py-8">
       <TeacherListClient
         initialTeachers={(teachers as TeacherWithProfile[]) ?? []}
         nextBooking={nextBooking}
+        slotsByTeacher={slotsByTeacher}
       />
     </div>
   );

@@ -173,6 +173,14 @@ const translations: Record<Locale, Record<string, string>> = {
     "teachers.price": "Price",
     "teachers.language": "Language",
     "teachers.level": "Level",
+    "teachers.day": "Day",
+    "teachers.time": "Time",
+    "teachers.anyDay": "Any Day",
+    "teachers.anyTime": "Any Time",
+    "teachers.morning": "Morning (6-12)",
+    "teachers.afternoon": "Afternoon (12-17)",
+    "teachers.evening": "Evening (17-21)",
+    "teachers.night": "Night (21-6)",
     "teachers.sort": "Sort",
 
     // Teacher detail page
@@ -405,6 +413,14 @@ const translations: Record<Locale, Record<string, string>> = {
     "teachers.price": "価格",
     "teachers.language": "言語",
     "teachers.level": "レベル",
+    "teachers.day": "曜日",
+    "teachers.time": "時間帯",
+    "teachers.anyDay": "すべての曜日",
+    "teachers.anyTime": "すべての時間",
+    "teachers.morning": "朝 (6-12時)",
+    "teachers.afternoon": "昼 (12-17時)",
+    "teachers.evening": "夕方 (17-21時)",
+    "teachers.night": "夜 (21-6時)",
     "teachers.sort": "並び替え",
 
     // Teacher detail page

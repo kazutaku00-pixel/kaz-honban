@@ -15,6 +15,8 @@ export interface FilterState {
   language: string;
   level: string;
   sort: SortOption;
+  dayOfWeek: string;
+  timeSlot: string;
 }
 
 function Dropdown({
@@ -117,6 +119,25 @@ export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
     ...LEVELS.map((l) => ({ value: l.value, label: l.label })),
   ];
 
+  const dayOptions = [
+    { value: "", label: t("teachers.anyDay") },
+    { value: "0", label: t("day.sun") },
+    { value: "1", label: t("day.mon") },
+    { value: "2", label: t("day.tue") },
+    { value: "3", label: t("day.wed") },
+    { value: "4", label: t("day.thu") },
+    { value: "5", label: t("day.fri") },
+    { value: "6", label: t("day.sat") },
+  ];
+
+  const timeSlotOptions = [
+    { value: "", label: t("teachers.anyTime") },
+    { value: "morning", label: t("teachers.morning") },
+    { value: "afternoon", label: t("teachers.afternoon") },
+    { value: "evening", label: t("teachers.evening") },
+    { value: "night", label: t("teachers.night") },
+  ];
+
   const sortOptions: { value: SortOption; label: string }[] = [
     { value: "recommended", label: t("teachers.recommended") },
     { value: "rating", label: t("teachers.highestRating") },
@@ -167,6 +188,18 @@ export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
 
       {/* Dropdowns row */}
       <div className="flex gap-2 flex-wrap">
+        <Dropdown
+          label={t("teachers.day")}
+          value={filters.dayOfWeek}
+          options={dayOptions}
+          onChange={(v) => update({ dayOfWeek: v })}
+        />
+        <Dropdown
+          label={t("teachers.time")}
+          value={filters.timeSlot}
+          options={timeSlotOptions}
+          onChange={(v) => update({ timeSlot: v })}
+        />
         <Dropdown
           label={t("teachers.price")}
           value={filters.priceRange}
