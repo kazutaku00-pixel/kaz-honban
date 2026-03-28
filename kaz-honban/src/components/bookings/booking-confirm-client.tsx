@@ -330,9 +330,9 @@ export function BookingConfirmClient({
               ) : (
                 <span>
                   $
-                  {durationMinutes === 25
-                    ? teacherProfile.hourly_rate / 2
-                    : teacherProfile.hourly_rate}
+                  {durationMinutes === 15
+                    ? teacherProfile.hourly_rate / 4
+                    : teacherProfile.hourly_rate / 2}
                 </span>
               )}
             </div>

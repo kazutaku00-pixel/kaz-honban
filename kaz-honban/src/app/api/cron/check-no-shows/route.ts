@@ -81,8 +81,8 @@ export async function GET(request: NextRequest) {
         .update({ status: "open", held_by: null, held_until: null } as never)
         .eq("id", noShowBooking.slot_id);
 
-      // For 50-min, release consecutive slot too
-      if (noShowBooking.duration_minutes === 50) {
+      // For 30-min, release consecutive slot too
+      if (noShowBooking.duration_minutes === 30) {
         const { data: primarySlotRaw } = await supabase
           .from("availability_slots")
           .select("end_at")

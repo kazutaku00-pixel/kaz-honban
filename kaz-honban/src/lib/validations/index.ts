@@ -17,7 +17,7 @@ export const teacherProfileSchema = z.object({
   categories: z.array(z.string()).min(1, "Select at least one category"),
   languages: z.array(z.string()).min(1, "Select at least one language"),
   levels: z.array(z.string()).min(1, "Select at least one level"),
-  lesson_duration_options: z.array(z.number().refine((n) => n === 25 || n === 50)).min(1, "Select at least one duration"),
+  lesson_duration_options: z.array(z.number().refine((n) => n === 15 || n === 30)).min(1, "Select at least one duration"),
   teaching_style: z.string().optional(),
   certifications: z.string().optional(),
   intro_video_url: z.string().url().optional().or(z.literal("")),
@@ -35,7 +35,7 @@ export const scheduleTemplateSchema = z.object({
 export const bookingSchema = z.object({
   teacher_id: z.string().uuid(),
   slot_id: z.string().uuid(),
-  duration_minutes: z.enum(["25", "50"]).transform(Number),
+  duration_minutes: z.enum(["15", "30"]).transform(Number),
   learner_note: z.string().max(500).optional(),
 });
 

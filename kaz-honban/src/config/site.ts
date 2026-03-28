@@ -2,7 +2,7 @@ export const siteConfig = {
   name: "NihonGo",
   tagline: "Learn Japanese with Real Teachers",
   description:
-    "1-on-1 Japanese lessons with native speakers. From $10/25min. Join 50,000+ learners.",
+    "1-on-1 Japanese lessons with native speakers. From $10/15min. Join 50,000+ learners.",
 
   hero: {
     badge: "50,000+ learners on Instagram",
@@ -14,7 +14,7 @@ export const siteConfig = {
     secondaryCta: { text: "How It Works", href: "#how-it-works" },
     stats: [
       { value: "40+", label: "Native Teachers" },
-      { value: "$10~", label: "per 25 min" },
+      { value: "$10~", label: "per 15 min" },
       { value: "4.9", label: "Avg Rating" },
     ],
   },
@@ -86,7 +86,7 @@ export const siteConfig = {
       titleEn: "Book a Lesson",
       titleJa: "予約する",
       description:
-        "Choose a time that works for you. 25 or 50 minute lessons. No complicated scheduling.",
+        "Choose a time that works for you. 15 or 30 minute lessons. No complicated scheduling.",
       icon: "Calendar",
     },
     {
@@ -130,8 +130,8 @@ export const siteConfig = {
     title: "Simple, Transparent Pricing",
     subtitle: "No hidden fees. No subscriptions required. Pay per lesson.",
     tiers: [
-      { duration: "25 min", price: "from $10", description: "Quick focused practice" },
-      { duration: "50 min", price: "from $18", description: "Deep dive sessions" },
+      { duration: "15 min", price: "from $10", description: "Quick focused practice" },
+      { duration: "30 min", price: "from $18", description: "Deep dive sessions" },
     ],
     note: "Platform fees are included in the lesson price. No additional charges.",
   },
@@ -143,7 +143,7 @@ export const siteConfig = {
     },
     {
       q: "How long is each lesson?",
-      a: "You can choose between 25-minute or 50-minute lessons. 25 minutes is great for focused practice, while 50 minutes allows for deeper conversation and more exercises.",
+      a: "You can choose between 15-minute or 30-minute lessons. 15 minutes is great for focused practice, while 30 minutes allows for deeper conversation and more exercises.",
     },
     {
       q: "Can I cancel or reschedule?",

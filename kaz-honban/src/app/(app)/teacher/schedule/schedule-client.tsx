@@ -117,7 +117,7 @@ export function ScheduleClient({ templates: initialTemplates, slots: initialSlot
 
           let currentMinutes = startH * 60 + startM;
           const endMinutes = endH * 60 + endM;
-          const slotDuration = 25;
+          const slotDuration = 15;
           const buffer = template.buffer_minutes;
 
           while (currentMinutes + slotDuration <= endMinutes) {

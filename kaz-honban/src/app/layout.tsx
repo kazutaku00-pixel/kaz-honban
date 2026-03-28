@@ -18,11 +18,11 @@ const notoJP = Noto_Sans_JP({
 export const metadata: Metadata = {
   title: "NihonGo — Learn Japanese with Real Teachers",
   description:
-    "1-on-1 Japanese lessons with native speakers. From $10/25min. Personalized to your level, schedule, and goals.",
+    "1-on-1 Japanese lessons with native speakers. From $10/15min. Personalized to your level, schedule, and goals.",
   openGraph: {
     title: "NihonGo — Learn Japanese with Real Teachers",
     description:
-      "1-on-1 Japanese lessons with native speakers. From $10/25min.",
+      "1-on-1 Japanese lessons with native speakers. From $10/15min.",
     type: "website",
   },
   appleWebApp: {

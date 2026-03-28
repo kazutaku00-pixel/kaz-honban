@@ -105,7 +105,7 @@ export function Teachers() {
                     <span className="text-lg font-bold text-text-primary">
                       ${teacher.price}
                     </span>
-                    <span className="text-xs text-text-muted"> /25min</span>
+                    <span className="text-xs text-text-muted"> /15min</span>
                   </div>
                   <span className="text-xs text-accent font-medium group-hover:underline cursor-pointer flex items-center gap-1">
                     View Profile

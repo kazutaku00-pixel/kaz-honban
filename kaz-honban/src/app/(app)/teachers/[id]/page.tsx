@@ -285,14 +285,14 @@ export default async function TeacherDetailPage({ params }: PageProps) {
                 <span className="text-xl font-bold text-text-primary">
                   ${t.hourly_rate}
                 </span>
-                <span className="text-xs text-text-muted ml-1">/25min</span>
+                <span className="text-xs text-text-muted ml-1">/15min</span>
               </div>
-              {t.lesson_duration_options.includes(50) && (
+              {t.lesson_duration_options.includes(30) && (
                 <div className="bg-bg-secondary rounded-xl px-4 py-2 border border-border">
                   <span className="text-xl font-bold text-text-primary">
                     ${t.hourly_rate * 2}
                   </span>
-                  <span className="text-xs text-text-muted ml-1">/50min</span>
+                  <span className="text-xs text-text-muted ml-1">/30min</span>
                 </div>
               )}
               {t.trial_enabled && t.trial_price !== null && (
@@ -350,7 +350,7 @@ export default async function TeacherDetailPage({ params }: PageProps) {
             <span className="text-lg font-bold text-text-primary">
               ${t.hourly_rate}
             </span>
-            <span className="text-xs text-text-muted"> /25min</span>
+            <span className="text-xs text-text-muted"> /15min</span>
           </div>
           <a
             href="#available-slots"

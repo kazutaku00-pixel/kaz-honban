@@ -246,7 +246,7 @@ export function TeacherCard({
             <span className="text-base font-bold text-text-primary">
               ${teacher.hourly_rate}
             </span>
-            <span className="text-[10px] text-text-muted"> /25min</span>
+            <span className="text-[10px] text-text-muted"> /15min</span>
           </div>
           <span className="text-xs text-accent font-medium group-hover:underline">
             {t("teachers.viewProfile")}

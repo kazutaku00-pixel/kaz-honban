@@ -20,7 +20,7 @@ export default async function BookingConfirmPage({ searchParams }: PageProps) {
   }
 
   const durationMinutes = Number(duration);
-  if (durationMinutes !== 25 && durationMinutes !== 50) {
+  if (durationMinutes !== 15 && durationMinutes !== 30) {
     redirect("/");
   }
 

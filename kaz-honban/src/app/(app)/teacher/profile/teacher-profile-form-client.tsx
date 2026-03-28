@@ -64,7 +64,7 @@ export function TeacherProfileFormClient({
   const [languages, setLanguages] = useState<string[]>(existingProfile?.languages ?? []);
   const [levels, setLevels] = useState<string[]>(existingProfile?.levels ?? []);
   const [durationOptions, setDurationOptions] = useState<number[]>(
-    existingProfile?.lesson_duration_options ?? [25]
+    existingProfile?.lesson_duration_options ?? [15]
   );
   const [teachingStyle, setTeachingStyle] = useState(existingProfile?.teaching_style ?? "");
   const [certifications, setCertifications] = useState(existingProfile?.certifications ?? "");
@@ -408,7 +408,7 @@ export function TeacherProfileFormClient({
         <div>
           <label className="text-sm text-text-secondary mb-1 block">{t("profile.durations")}</label>
           <div className="flex gap-3">
-            {[25, 50].map((d) => (
+            {[15, 30].map((d) => (
               <button
                 key={d}
                 type="button"
