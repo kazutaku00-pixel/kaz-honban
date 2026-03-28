@@ -350,8 +350,8 @@ BEGIN
   END IF;
 
   -- 4. Prevent booking past slots (must be at least 30 min in the future)
-  IF v_slot.start_at < (now() + interval '30 minutes') THEN
-    RETURN json_build_object('error', 'Cannot book a slot less than 30 minutes from now', 'code', 400);
+  IF v_slot.start_at < (now() + interval '1 minute') THEN
+    RETURN json_build_object('error', 'Cannot book a slot in the past', 'code', 400);
   END IF;
 
   -- 5. Check learner doesn't have an overlapping booking
