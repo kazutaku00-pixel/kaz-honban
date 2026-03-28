@@ -50,6 +50,7 @@ export default function VideoRoomPage() {
   const [cameraOn, setCameraOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
   const [remainingTime, setRemainingTime] = useState<string>("");
+  const [timerPhase, setTimerPhase] = useState<"normal" | "warning" | "ending" | "overtime">("normal");
   const [lateMessage, setLateMessage] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -113,7 +114,7 @@ export default function VideoRoomPage() {
     checkDevices();
   }, [phase]);
 
-  // Timer
+  // Timer with phase warnings
   useEffect(() => {
     if (phase !== "joined" || !booking) return;
     function updateTimer() {
@@ -121,13 +122,36 @@ export default function VideoRoomPage() {
       const endTime = new Date(booking.scheduled_end_at).getTime();
       const now = Date.now();
       const diff = endTime - now;
+
       if (diff <= 0) {
-        setRemainingTime("00:00");
+        // Overtime — count up
+        const overMs = Math.abs(diff);
+        const overMins = Math.floor(overMs / 60000);
+        const overSecs = Math.floor((overMs % 60000) / 1000);
+        setRemainingTime(`+${String(overMins).padStart(2, "0")}:${String(overSecs).padStart(2, "0")}`);
+        setTimerPhase("overtime");
         return;
       }
+
       const mins = Math.floor(diff / 60000);
       const secs = Math.floor((diff % 60000) / 1000);
       setRemainingTime(`${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`);
+
+      if (diff <= 2 * 60 * 1000) {
+        setTimerPhase("ending");
+        // Vibrate at exactly 2:00
+        if (mins === 2 && secs === 0 && typeof navigator !== "undefined" && navigator.vibrate) {
+          navigator.vibrate([200, 100, 200]);
+        }
+      } else if (diff <= 5 * 60 * 1000) {
+        setTimerPhase("warning");
+        // Vibrate at exactly 5:00
+        if (mins === 5 && secs === 0 && typeof navigator !== "undefined" && navigator.vibrate) {
+          navigator.vibrate(200);
+        }
+      } else {
+        setTimerPhase("normal");
+      }
     }
     updateTimer();
     timerRef.current = setInterval(updateTimer, 1000);
@@ -351,7 +375,13 @@ export default function VideoRoomPage() {
             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
             <span className="text-sm text-text-primary font-medium">Live</span>
           </div>
-          <div className="flex items-center gap-2 text-text-primary">
+          <div className={cn(
+            "flex items-center gap-2 px-3 py-1 rounded-lg transition-all",
+            timerPhase === "normal" && "text-text-primary",
+            timerPhase === "warning" && "text-amber-400 bg-amber-500/10",
+            timerPhase === "ending" && "text-red-400 bg-red-500/10 animate-pulse",
+            timerPhase === "overtime" && "text-red-400 bg-red-500/20 animate-pulse"
+          )}>
             <Clock size={14} />
             <span className="text-sm font-mono font-bold">{remainingTime}</span>
           </div>
@@ -402,6 +432,7 @@ export default function VideoRoomPage() {
                 bookingId={bookingId}
                 userId={userId}
                 otherName={otherPerson?.display_name ?? ""}
+                isTeacher={isTeacher}
               />
             </div>
           )}
@@ -421,6 +452,7 @@ export default function VideoRoomPage() {
                 bookingId={bookingId}
                 userId={userId}
                 otherName={otherPerson?.display_name ?? ""}
+                isTeacher={isTeacher}
               />
             </div>
           </div>
