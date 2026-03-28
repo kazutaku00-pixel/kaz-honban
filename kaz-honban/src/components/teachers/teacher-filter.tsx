@@ -167,29 +167,28 @@ export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
     filters.timeSlot;
 
   return (
-    <div className="space-y-3">
-      {/* Search bar */}
-      <div className="relative">
-        <input
-          type="text"
-          placeholder={t("teachers.searchPlaceholder")}
-          value={filters.keyword}
-          onChange={(e) => update({ keyword: e.target.value })}
-          className={cn(
-            "w-full px-4 py-2.5 pl-10 rounded-xl text-sm",
-            "bg-bg-secondary border border-border text-text-primary placeholder:text-text-muted",
-            "focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20",
-            "transition-colors"
-          )}
-        />
-        <Search
-          size={15}
-          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
-        />
-      </div>
-
-      {/* All filters in one compact row */}
+    <div>
+      {/* Search + all filters in one row */}
       <div className="flex gap-1.5 flex-wrap items-center">
+        {/* Compact inline search */}
+        <div className="relative">
+          <input
+            type="text"
+            placeholder={t("teachers.searchPlaceholder")}
+            value={filters.keyword}
+            onChange={(e) => update({ keyword: e.target.value })}
+            className={cn(
+              "w-[180px] sm:w-[200px] px-3 py-1.5 pl-8 rounded-full text-xs",
+              "bg-bg-secondary border border-border text-text-primary placeholder:text-text-muted",
+              "focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20",
+              "transition-colors"
+            )}
+          />
+          <Search
+            size={12}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+          />
+        </div>
         <Dropdown
           label={t("teachers.category")}
           value={filters.category}
@@ -261,3 +260,4 @@ export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
     </div>
   );
 }
+
