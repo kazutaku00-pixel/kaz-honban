@@ -1,39 +1,35 @@
 import { createBrowserClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 
-// When NEXT_PUBLIC_TAB_ISOLATED_AUTH=true, each browser tab keeps its own
-// session via sessionStorage instead of sharing via cookies+BroadcastChannel.
-// Useful for QA testing with multiple accounts in different tabs.
+// When NEXT_PUBLIC_TAB_ISOLATED_AUTH=true, use the vanilla supabase-js client
+// with sessionStorage so each tab keeps a completely independent session.
+// The @supabase/ssr createBrowserClient always syncs via cookies + BroadcastChannel
+// which forces all tabs to the same account — unusable for multi-account testing.
 const useTabIsolation =
-  process.env.NEXT_PUBLIC_TAB_ISOLATED_AUTH === "true" &&
-  typeof window !== "undefined";
-
-const tabIsolatedStorage: Storage | undefined = useTabIsolation
-  ? {
-      getItem: (key: string) => sessionStorage.getItem(key),
-      setItem: (key: string, value: string) =>
-        sessionStorage.setItem(key, value),
-      removeItem: (key: string) => sessionStorage.removeItem(key),
-      get length() {
-        return sessionStorage.length;
-      },
-      clear: () => sessionStorage.clear(),
-      key: (index: number) => sessionStorage.key(index),
-    }
-  : undefined;
+  typeof window !== "undefined" &&
+  process.env.NEXT_PUBLIC_TAB_ISOLATED_AUTH === "true";
 
 export function createClient() {
+  if (useTabIsolation) {
+    return createSupabaseClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          storage: sessionStorage,
+          persistSession: true,
+          detectSessionInUrl: true,
+          flowType: "pkce",
+          // Prevent cross-tab auth state broadcast
+          storageKey: "sb-auth-token",
+        },
+      }
+    );
+  }
+
   return createBrowserClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    useTabIsolation
-      ? {
-          auth: {
-            storage: tabIsolatedStorage,
-            storageKey: "sb-auth-token",
-            flowType: "pkce",
-          },
-        }
-      : undefined
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 }
