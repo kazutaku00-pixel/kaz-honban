@@ -13,7 +13,9 @@ import {
   Loader2,
   User,
   CalendarDays,
+  MessageSquare,
 } from "lucide-react";
+import { RoomChat } from "@/components/room/room-chat";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
@@ -50,6 +52,7 @@ export default function VideoRoomPage() {
   const [remainingTime, setRemainingTime] = useState<string>("");
   const [lateMessage, setLateMessage] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -335,9 +338,11 @@ export default function VideoRoomPage() {
     );
   }
 
-  // Joined - show Daily iframe
-  if (phase === "joined" && roomData) {
+  // Joined - show Daily iframe + chat
+  if (phase === "joined" && roomData && booking) {
     const iframeSrc = `${roomData.url}?t=${encodeURIComponent(roomData.token)}`;
+    const isTeacher = userId === booking.teacher_id;
+    const otherPerson = isTeacher ? booking.learner : booking.teacher;
     return (
       <div className="fixed inset-0 bg-black z-50 flex flex-col">
         {/* Top bar */}
@@ -350,13 +355,27 @@ export default function VideoRoomPage() {
             <Clock size={14} />
             <span className="text-sm font-mono font-bold">{remainingTime}</span>
           </div>
-          <button
-            onClick={handleLeave}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/20 text-red-400 font-medium text-sm hover:bg-red-500/30 transition"
-          >
-            <PhoneOff size={14} />
-            Leave
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setChatOpen(!chatOpen)}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-2 rounded-xl font-medium text-sm transition",
+                chatOpen
+                  ? "bg-accent/20 text-accent"
+                  : "bg-white/10 text-text-secondary hover:bg-white/15"
+              )}
+            >
+              <MessageSquare size={14} />
+              Chat
+            </button>
+            <button
+              onClick={handleLeave}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/20 text-red-400 font-medium text-sm hover:bg-red-500/30 transition"
+            >
+              <PhoneOff size={14} />
+              Leave
+            </button>
+          </div>
         </div>
 
         {/* Late indicator */}
@@ -366,13 +385,46 @@ export default function VideoRoomPage() {
           </div>
         )}
 
-        {/* Daily iframe */}
-        <iframe
-          ref={iframeRef}
-          src={iframeSrc}
-          allow="camera; microphone; fullscreen; display-capture; autoplay"
-          className="flex-1 w-full border-0"
-        />
+        {/* Main content: Video + Chat */}
+        <div className="flex-1 flex min-h-0">
+          {/* Daily iframe */}
+          <iframe
+            ref={iframeRef}
+            src={iframeSrc}
+            allow="camera; microphone; fullscreen; display-capture; autoplay"
+            className="flex-1 border-0"
+          />
+
+          {/* Chat panel */}
+          {chatOpen && userId && (
+            <div className="w-80 shrink-0 hidden sm:block">
+              <RoomChat
+                bookingId={bookingId}
+                userId={userId}
+                otherName={otherPerson?.display_name ?? ""}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Mobile chat overlay */}
+        {chatOpen && userId && (
+          <div className="sm:hidden fixed inset-0 z-[60] flex flex-col">
+            <button
+              onClick={() => setChatOpen(false)}
+              className="px-4 py-3 bg-bg-secondary border-b border-border text-text-muted text-sm text-center"
+            >
+              Tap to close chat
+            </button>
+            <div className="flex-1">
+              <RoomChat
+                bookingId={bookingId}
+                userId={userId}
+                otherName={otherPerson?.display_name ?? ""}
+              />
+            </div>
+          </div>
+        )}
       </div>
     );
   }

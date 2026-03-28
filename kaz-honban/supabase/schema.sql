@@ -149,6 +149,7 @@ CREATE TABLE IF NOT EXISTS messages (
   booking_id UUID NOT NULL REFERENCES bookings(id),
   sender_id UUID NOT NULL REFERENCES profiles(id),
   body TEXT NOT NULL,
+  image_url TEXT,
   is_read BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
