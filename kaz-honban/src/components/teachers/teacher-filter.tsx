@@ -170,25 +170,6 @@ export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
     <div>
       {/* Search + all filters in one row */}
       <div className="flex gap-1.5 flex-wrap items-center">
-        {/* Compact inline search */}
-        <div className="relative">
-          <input
-            type="text"
-            placeholder={t("teachers.searchPlaceholder")}
-            value={filters.keyword}
-            onChange={(e) => update({ keyword: e.target.value })}
-            className={cn(
-              "w-[180px] sm:w-[200px] px-3 py-1.5 pl-8 rounded-full text-xs",
-              "bg-bg-secondary border border-border text-text-primary placeholder:text-text-muted",
-              "focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20",
-              "transition-colors"
-            )}
-          />
-          <Search
-            size={12}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-          />
-        </div>
         <Dropdown
           label={t("teachers.category")}
           value={filters.category}
@@ -256,6 +237,29 @@ export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
             Clear all
           </button>
         )}
+
+        {/* Spacer pushes search to the right */}
+        <div className="flex-1" />
+
+        {/* Compact search — right-aligned */}
+        <div className="relative">
+          <input
+            type="text"
+            placeholder={t("teachers.searchPlaceholder")}
+            value={filters.keyword}
+            onChange={(e) => update({ keyword: e.target.value })}
+            className={cn(
+              "w-[160px] sm:w-[200px] px-3 py-1.5 pl-8 rounded-full text-xs",
+              "bg-bg-secondary border border-border text-text-primary placeholder:text-text-muted",
+              "focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20",
+              "transition-colors"
+            )}
+          />
+          <Search
+            size={12}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+          />
+        </div>
       </div>
     </div>
   );
