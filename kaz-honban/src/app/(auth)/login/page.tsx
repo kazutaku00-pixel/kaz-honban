@@ -1,14 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center">
+          <Loader2 size={24} className="animate-spin text-accent" />
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +43,9 @@ export default function LoginPage() {
 
     if (roles && roles.length > 0) {
       const role = (roles[0] as { role: string }).role;
-      if (role === "teacher") {
+      if (redirectTo) {
+        router.push(redirectTo);
+      } else if (role === "teacher") {
         router.push("/teacher/dashboard");
       } else {
         router.push("/dashboard");
@@ -41,10 +59,12 @@ export default function LoginPage() {
     setError(null);
     setOauthLoading("google");
     const supabase = createClient();
+    const callbackUrl = new URL(`${window.location.origin}/auth/callback`);
+    if (redirectTo) callbackUrl.searchParams.set("redirect", redirectTo);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: callbackUrl.toString(),
       },
     });
     if (error) {
@@ -57,10 +77,12 @@ export default function LoginPage() {
     setError(null);
     setOauthLoading("apple");
     const supabase = createClient();
+    const callbackUrl = new URL(`${window.location.origin}/auth/callback`);
+    if (redirectTo) callbackUrl.searchParams.set("redirect", redirectTo);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "apple",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: callbackUrl.toString(),
       },
     });
     if (error) {

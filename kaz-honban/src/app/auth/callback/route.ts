@@ -8,6 +8,7 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const role = searchParams.get("role"); // "learner" | "teacher"
   const invite = searchParams.get("invite");
+  const redirectParam = searchParams.get("redirect");
   const tabIsolated = process.env.NEXT_PUBLIC_TAB_ISOLATED_AUTH === "true";
 
   if (code) {
@@ -71,8 +72,12 @@ export async function GET(request: Request) {
             redirectPath = "/teacher/profile";
           }
         } else if (existingRoles && existingRoles.length > 0) {
-          const userRole = (existingRoles[0] as { role: string }).role;
-          redirectPath = userRole === "teacher" ? "/teacher/dashboard" : "/dashboard";
+          if (redirectParam) {
+            redirectPath = redirectParam;
+          } else {
+            const userRole = (existingRoles[0] as { role: string }).role;
+            redirectPath = userRole === "teacher" ? "/teacher/dashboard" : "/dashboard";
+          }
         }
       }
 
