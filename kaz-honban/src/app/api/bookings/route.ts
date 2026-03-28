@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error("create_booking_atomic rpc error:", error);
       return NextResponse.json(
-        { error: "Failed to create booking" },
+        { error: error.message || "Failed to create booking" },
         { status: 500 }
       );
     }
