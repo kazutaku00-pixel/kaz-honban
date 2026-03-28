@@ -11,10 +11,14 @@ interface AvailableSlotsProps {
   teacherId: string;
 }
 
-function getNext7Days(): Date[] {
+const SLOT_RANGE_DAYS = 14;
+const VISIBLE_DAYS = 5;
+const SLOTS_PER_DAY_COLLAPSED = 4;
+
+function getNextDays(): Date[] {
   const days: Date[] = [];
   const now = new Date();
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < SLOT_RANGE_DAYS; i++) {
     const d = new Date(now);
     d.setDate(now.getDate() + i);
     d.setHours(0, 0, 0, 0);
@@ -23,7 +27,7 @@ function getNext7Days(): Date[] {
   return days;
 }
 
-function formatDay(date: Date) {
+function formatDayLabel(date: Date) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
@@ -31,11 +35,11 @@ function formatDay(date: Date) {
 
   if (date.getTime() === today.getTime()) return "Today";
   if (date.getTime() === tomorrow.getTime()) return "Tomorrow";
-  return date.toLocaleDateString("en-US", { weekday: "short" });
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function formatDate(date: Date) {
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+function formatDayName(date: Date) {
+  return date.toLocaleDateString("en-US", { weekday: "short" });
 }
 
 function getUserTimezone(): string {
@@ -71,19 +75,20 @@ export function AvailableSlots({ teacherId }: AvailableSlotsProps) {
   const router = useRouter();
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDateIndex, setSelectedDateIndex] = useState(0);
+  const [dayOffset, setDayOffset] = useState(0);
   const [duration, setDuration] = useState<25 | 50>(25);
+  const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
   const userTz = useMemo(() => getUserTimezone(), []);
 
-  const days = useMemo(() => getNext7Days(), []);
+  const allDays = useMemo(() => getNextDays(), []);
 
   useEffect(() => {
     async function fetchSlots() {
       setLoading(true);
       const supabase = createClient();
 
-      const startOfRange = days[0].toISOString();
-      const endOfRange = new Date(days[6]);
+      const startOfRange = allDays[0].toISOString();
+      const endOfRange = new Date(allDays[allDays.length - 1]);
       endOfRange.setDate(endOfRange.getDate() + 1);
 
       const { data } = await supabase
@@ -99,21 +104,30 @@ export function AvailableSlots({ teacherId }: AvailableSlotsProps) {
       setLoading(false);
     }
     fetchSlots();
-  }, [teacherId, days]);
+  }, [teacherId, allDays]);
 
-  const selectedDate = days[selectedDateIndex];
+  // Visible days window
+  const visibleDays = allDays.slice(dayOffset, dayOffset + VISIBLE_DAYS);
 
-  const slotsForDate = useMemo(() => {
-    const dayStart = new Date(selectedDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayStart.getDate() + 1);
+  // Group slots by day
+  const slotsByDay = useMemo(() => {
+    const map = new Map<number, AvailabilitySlot[]>();
+    for (const day of allDays) {
+      const dayStart = new Date(day);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayStart.getDate() + 1);
 
-    return slots.filter((s) => {
-      const start = new Date(s.start_at);
-      return start >= dayStart && start < dayEnd;
-    });
-  }, [slots, selectedDate]);
+      map.set(
+        day.getTime(),
+        slots.filter((s) => {
+          const start = new Date(s.start_at);
+          return start >= dayStart && start < dayEnd;
+        })
+      );
+    }
+    return map;
+  }, [slots, allDays]);
 
   const handleSlotClick = (slot: AvailabilitySlot) => {
     router.push(
@@ -121,8 +135,24 @@ export function AvailableSlots({ teacherId }: AvailableSlotsProps) {
     );
   };
 
+  const toggleExpand = (dayKey: number) => {
+    setExpandedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(dayKey)) {
+        next.delete(dayKey);
+      } else {
+        next.add(dayKey);
+      }
+      return next;
+    });
+  };
+
+  const canGoBack = dayOffset > 0;
+  const canGoForward = dayOffset + VISIBLE_DAYS < SLOT_RANGE_DAYS;
+
   return (
     <div>
+      {/* Header row */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-text-primary font-[family-name:var(--font-display)]">
           Available Slots
@@ -152,87 +182,123 @@ export function AvailableSlots({ teacherId }: AvailableSlotsProps) {
         ))}
       </div>
 
-      {/* Date picker (horizontal scroll) */}
-      <div className="flex items-center gap-1 mb-5">
-        <button
-          type="button"
-          onClick={() => setSelectedDateIndex((i) => Math.max(0, i - 1))}
-          disabled={selectedDateIndex === 0}
-          className="p-1 text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors"
-        >
-          <ChevronLeft size={18} />
-        </button>
-
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide flex-1 px-1">
-          {days.map((day, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setSelectedDateIndex(i)}
-              className={cn(
-                "flex flex-col items-center min-w-[64px] py-2 px-3 rounded-xl text-xs transition-colors",
-                selectedDateIndex === i
-                  ? "bg-accent text-white"
-                  : "bg-bg-tertiary text-text-secondary border border-border hover:border-border-hover"
-              )}
-            >
-              <span className="font-medium">{formatDay(day)}</span>
-              <span className="text-[10px] mt-0.5 opacity-70">
-                {formatDate(day)}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setSelectedDateIndex((i) => Math.min(6, i + 1))}
-          disabled={selectedDateIndex === 6}
-          className="p-1 text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors"
-        >
-          <ChevronRight size={18} />
-        </button>
-      </div>
-
-      {/* Time slots */}
+      {/* Cambly-style multi-column day view */}
       {loading ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-10 rounded-xl bg-bg-tertiary animate-pulse"
-            />
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+          {Array.from({ length: VISIBLE_DAYS }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <div className="h-12 rounded-lg bg-bg-tertiary animate-pulse" />
+              <div className="h-9 rounded-lg bg-bg-tertiary animate-pulse" />
+              <div className="h-9 rounded-lg bg-bg-tertiary animate-pulse" />
+            </div>
           ))}
         </div>
       ) : slots.length === 0 ? (
         <div className="text-center py-8 space-y-2">
           <p className="text-text-muted text-sm">
-            This teacher has no available slots in the next 7 days.
+            This teacher has no available slots in the next {SLOT_RANGE_DAYS} days.
           </p>
           <p className="text-text-muted text-xs">
             Check back later or browse other teachers.
           </p>
         </div>
-      ) : slotsForDate.length === 0 ? (
-        <p className="text-center py-8 text-text-muted text-sm">
-          No slots on this day — try another date above
-        </p>
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-          {slotsForDate.map((slot) => (
+        <div>
+          {/* Day navigation */}
+          <div className="flex items-center gap-2 mb-4">
             <button
-              key={slot.id}
               type="button"
-              onClick={() => handleSlotClick(slot)}
-              className={cn(
-                "py-2.5 px-3 rounded-xl text-sm font-medium transition-all",
-                "bg-bg-tertiary text-text-secondary border border-border",
-                "hover:border-accent/50 hover:text-accent hover:bg-accent-subtle"
-              )}
+              onClick={() => setDayOffset((o) => Math.max(0, o - VISIBLE_DAYS))}
+              disabled={!canGoBack}
+              className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-tertiary disabled:opacity-30 transition-colors"
             >
-              {formatTime(slot.start_at, userTz)}
+              <ChevronLeft size={18} />
             </button>
-          ))}
+            <div className="flex-1" />
+            <button
+              type="button"
+              onClick={() =>
+                setDayOffset((o) =>
+                  Math.min(SLOT_RANGE_DAYS - VISIBLE_DAYS, o + VISIBLE_DAYS)
+                )
+              }
+              disabled={!canGoForward}
+              className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-tertiary disabled:opacity-30 transition-colors"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+
+          {/* Column grid */}
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
+            {visibleDays.map((day) => {
+              const dayKey = day.getTime();
+              const daySlots = slotsByDay.get(dayKey) ?? [];
+              const isExpanded = expandedDays.has(dayKey);
+              const visibleSlots = isExpanded
+                ? daySlots
+                : daySlots.slice(0, SLOTS_PER_DAY_COLLAPSED);
+              const hiddenCount = daySlots.length - SLOTS_PER_DAY_COLLAPSED;
+
+              return (
+                <div key={dayKey} className="min-w-0">
+                  {/* Day header */}
+                  <div className="text-center mb-2 pb-2 border-b border-border">
+                    <p className="text-xs font-bold text-text-primary">
+                      {formatDayName(day)}
+                    </p>
+                    <p className="text-[10px] text-text-muted">
+                      {formatDayLabel(day)}
+                    </p>
+                  </div>
+
+                  {/* Slots */}
+                  <div className="space-y-1.5">
+                    {daySlots.length === 0 ? (
+                      <p className="text-center text-text-muted text-xs py-3">
+                        - -
+                      </p>
+                    ) : (
+                      <>
+                        {visibleSlots.map((slot) => (
+                          <button
+                            key={slot.id}
+                            type="button"
+                            onClick={() => handleSlotClick(slot)}
+                            className={cn(
+                              "w-full py-2 px-1 rounded-lg text-xs font-medium transition-all",
+                              "bg-bg-tertiary text-text-secondary border border-border",
+                              "hover:border-accent/50 hover:text-accent hover:bg-accent-subtle"
+                            )}
+                          >
+                            {formatTime(slot.start_at, userTz)}
+                          </button>
+                        ))}
+                        {!isExpanded && hiddenCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => toggleExpand(dayKey)}
+                            className="w-full py-1.5 text-[10px] font-medium text-accent hover:underline"
+                          >
+                            +{hiddenCount} MORE
+                          </button>
+                        )}
+                        {isExpanded && hiddenCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => toggleExpand(dayKey)}
+                            className="w-full py-1.5 text-[10px] font-medium text-text-muted hover:text-text-secondary"
+                          >
+                            Show less
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

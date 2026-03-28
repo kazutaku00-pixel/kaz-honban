@@ -101,10 +101,10 @@ export function ScheduleClient({ templates: initialTemplates, slots: initialSlot
       const supabase = createClient();
       const userId = (await supabase.auth.getUser()).data.user!.id;
 
-      // Generate slots for next 7 days based on templates
+      // Generate slots for next 14 days based on templates
       const newSlots: { teacher_id: string; start_at: string; end_at: string }[] = [];
 
-      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
         const date = new Date();
         date.setDate(date.getDate() + dayOffset);
         const dayOfWeek = date.getDay();
@@ -162,7 +162,7 @@ export function ScheduleClient({ templates: initialTemplates, slots: initialSlot
       const uniqueSlots = newSlots.filter((s) => !existingSet.has(s.start_at));
 
       if (uniqueSlots.length === 0) {
-        setError("All slots already exist for the next 7 days.");
+        setError("All slots already exist for the next 14 days.");
         return;
       }
 

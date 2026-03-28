@@ -182,6 +182,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "teachers.evening": "Evening (17-21)",
     "teachers.night": "Night (21-6)",
     "teachers.sort": "Sort",
+    "teachers.lessonsShort": "lessons",
+    "teachers.category": "Category",
 
     // Teacher detail page
     "detail.backToTeachers": "Back to Teachers",
@@ -422,6 +424,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "teachers.evening": "夕方 (17-21時)",
     "teachers.night": "夜 (21-6時)",
     "teachers.sort": "並び替え",
+    "teachers.lessonsShort": "レッスン",
+    "teachers.category": "カテゴリ",
 
     // Teacher detail page
     "detail.backToTeachers": "先生一覧に戻る",

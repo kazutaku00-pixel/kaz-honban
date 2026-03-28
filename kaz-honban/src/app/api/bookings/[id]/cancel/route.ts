@@ -3,8 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { notifyBookingCancelled } from "@/lib/notifications";
 import type { Booking, AvailabilitySlot } from "@/types/database";
 
+const LEARNER_CANCEL_DEADLINE_HOURS = 2;
+
 export async function PATCH(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -18,7 +20,17 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Use service role for DB operations (RLS prevents learner from updating slots)
+    // Parse optional cancellation reason from body
+    let cancellationReason: string | null = null;
+    try {
+      const body = await request.json();
+      if (body.cancellation_reason && typeof body.cancellation_reason === "string") {
+        cancellationReason = body.cancellation_reason.slice(0, 500);
+      }
+    } catch {
+      // No body or invalid JSON — that's fine
+    }
+
     const supabase = createServiceRoleClient();
 
     // Fetch booking
@@ -47,6 +59,23 @@ export async function PATCH(
       );
     }
 
+    // Enforce cancellation policy for learners (teachers can cancel anytime)
+    const isLearner = booking.learner_id === user.id;
+    if (isLearner) {
+      const lessonStart = new Date(booking.scheduled_start_at).getTime();
+      const deadlineMs = LEARNER_CANCEL_DEADLINE_HOURS * 60 * 60 * 1000;
+      const now = Date.now();
+
+      if (lessonStart - now < deadlineMs) {
+        return NextResponse.json(
+          {
+            error: `Cancellation is only allowed up to ${LEARNER_CANCEL_DEADLINE_HOURS} hours before the lesson. Please contact the teacher directly.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Update booking
     const { error: updateError } = await supabase
       .from("bookings")
@@ -54,6 +83,7 @@ export async function PATCH(
         status: "cancelled",
         cancelled_at: new Date().toISOString(),
         cancelled_by: user.id,
+        cancellation_reason: cancellationReason,
       } as never)
       .eq("id", bookingId);
 

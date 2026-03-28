@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -12,8 +12,18 @@ import {
   Loader2,
   ArrowLeft,
   Sparkles,
+  AlertTriangle,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import type { Profile, TeacherProfile, AvailabilitySlot } from "@/types/database";
+
+interface OverlappingBooking {
+  id: string;
+  scheduled_start_at: string;
+  scheduled_end_at: string;
+  duration_minutes: number;
+  teacher: { display_name: string } | null;
+}
 
 interface BookingConfirmClientProps {
   teacher: Profile;
@@ -35,6 +45,11 @@ export function BookingConfirmClient({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
+
+  // Overlap detection state
+  const [overlappingBooking, setOverlappingBooking] = useState<OverlappingBooking | null>(null);
+  const [showOverlapModal, setShowOverlapModal] = useState(false);
+  const [cancellingOverlap, setCancellingOverlap] = useState(false);
 
   const userTz = typeof window !== "undefined"
     ? Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -76,6 +91,27 @@ export function BookingConfirmClient({
 
   const isBeta = process.env.NEXT_PUBLIC_PAYMENT_ENABLED !== "true";
 
+  // Check for overlapping bookings on mount
+  useEffect(() => {
+    async function checkOverlap() {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("bookings")
+        .select("id, scheduled_start_at, scheduled_end_at, duration_minutes, teacher:profiles!bookings_teacher_id_fkey(display_name)")
+        .eq("learner_id", learnerId)
+        .in("status", ["confirmed", "in_session"])
+        .lt("scheduled_start_at", endDate.toISOString())
+        .gt("scheduled_end_at", startDate.toISOString());
+
+      if (data && data.length > 0) {
+        const overlap = data[0] as unknown as OverlappingBooking;
+        setOverlappingBooking(overlap);
+        setShowOverlapModal(true);
+      }
+    }
+    checkOverlap();
+  }, [learnerId, startDate, endDate]);
+
   async function handleConfirm() {
     setIsLoading(true);
     setError(null);
@@ -110,6 +146,38 @@ export function BookingConfirmClient({
     }
   }
 
+  async function handleCancelOverlapAndBook() {
+    if (!overlappingBooking) return;
+    setCancellingOverlap(true);
+
+    try {
+      const res = await fetch(`/api/bookings/${overlappingBooking.id}/cancel`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cancellation_reason: "Replaced with a new booking",
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Failed to cancel existing booking");
+        setShowOverlapModal(false);
+        return;
+      }
+
+      setOverlappingBooking(null);
+      setShowOverlapModal(false);
+      // Now proceed with the new booking
+      await handleConfirm();
+    } catch {
+      setError("Failed to cancel existing booking");
+      setShowOverlapModal(false);
+    } finally {
+      setCancellingOverlap(false);
+    }
+  }
+
   if (isConfirmed) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
@@ -126,6 +194,78 @@ export function BookingConfirmClient({
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
+      {/* Overlap Warning Modal */}
+      {showOverlapModal && overlappingBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-[#1a1a1a] rounded-2xl border border-white/10 p-6 max-w-md w-full space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-yellow-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">Scheduling Conflict</h3>
+                <p className="text-sm text-gray-400">
+                  You already have a lesson at this time
+                </p>
+              </div>
+            </div>
+
+            {/* Existing booking info */}
+            <div className="rounded-xl bg-white/5 border border-white/10 p-4 space-y-2">
+              <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Existing Booking</p>
+              <p className="text-sm text-white font-medium">
+                {overlappingBooking.teacher?.display_name ?? "Teacher"}
+              </p>
+              <p className="text-xs text-gray-400">
+                {new Date(overlappingBooking.scheduled_start_at).toLocaleTimeString("en-US", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  timeZone: userTz,
+                })}
+                {" - "}
+                {new Date(overlappingBooking.scheduled_end_at).toLocaleTimeString("en-US", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  timeZone: userTz,
+                })}
+                {" "}({overlappingBooking.duration_minutes} min)
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  setShowOverlapModal(false);
+                  router.back();
+                }}
+                className="w-full py-3 rounded-xl text-sm font-medium bg-white/5 border border-white/10 hover:bg-white/10 transition text-white"
+              >
+                Keep Existing Booking
+              </button>
+              <button
+                onClick={handleCancelOverlapAndBook}
+                disabled={cancellingOverlap}
+                className={cn(
+                  "w-full py-3 rounded-xl text-sm font-medium transition",
+                  "bg-[#FF6B4A] hover:bg-[#FF6B4A]/90 text-white",
+                  "disabled:opacity-50 flex items-center justify-center gap-2"
+                )}
+              >
+                {cancellingOverlap ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Switching...
+                  </>
+                ) : (
+                  "Cancel Existing & Book This One"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
@@ -253,9 +393,12 @@ export function BookingConfirmClient({
           )}
         </button>
 
-        <p className="text-center text-xs text-gray-500">
-          You can cancel up to 2 hours before the lesson starts.
-        </p>
+        <div className="rounded-xl bg-yellow-500/5 border border-yellow-500/15 p-4 space-y-1">
+          <p className="text-xs text-yellow-300/80 font-medium">Cancellation Policy</p>
+          <p className="text-xs text-gray-400">
+            Free cancellation up to 2 hours before the lesson. After that, cancellation is not possible — please contact the teacher directly.
+          </p>
+        </div>
       </div>
     </div>
   );
