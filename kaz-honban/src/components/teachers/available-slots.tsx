@@ -76,7 +76,7 @@ export function AvailableSlots({ teacherId }: AvailableSlotsProps) {
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [dayOffset, setDayOffset] = useState(0);
-  const [duration, setDuration] = useState<15 | 30>(15);
+  const [duration, setDuration] = useState<number>(15);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
   const userTz = useMemo(() => getUserTimezone(), []);
 
@@ -164,7 +164,7 @@ export function AvailableSlots({ teacherId }: AvailableSlotsProps) {
 
       {/* Duration toggle */}
       <div className="flex gap-2 mb-5">
-        {([15, 30] as const).map((d) => (
+        {[15, 30].map((d) => (
           <button
             key={d}
             type="button"

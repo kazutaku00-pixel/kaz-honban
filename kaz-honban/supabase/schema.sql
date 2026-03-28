@@ -368,8 +368,8 @@ BEGIN
   v_slot_ids := ARRAY[p_slot_id];
   v_scheduled_end := v_slot.end_at;
 
-  -- 6. For 30-min lessons, lock the exact next consecutive slot
-  IF p_duration_minutes = 30 THEN
+  -- 6. For double-slot lessons (30 or 50 min), lock the exact next consecutive slot
+  IF p_duration_minutes IN (30, 50) THEN
     SELECT * INTO v_next_slot
     FROM availability_slots
     WHERE teacher_id = p_teacher_id
@@ -378,7 +378,7 @@ BEGIN
     FOR UPDATE;
 
     IF v_next_slot IS NULL THEN
-      RETURN json_build_object('error', 'Consecutive slot not available for 30-min lesson', 'code', 409);
+      RETURN json_build_object('error', 'Consecutive slot not available for this lesson duration', 'code', 409);
     END IF;
 
     v_slot_ids := v_slot_ids || v_next_slot.id;

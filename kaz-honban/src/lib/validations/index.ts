@@ -35,7 +35,7 @@ export const scheduleTemplateSchema = z.object({
 export const bookingSchema = z.object({
   teacher_id: z.string().uuid(),
   slot_id: z.string().uuid(),
-  duration_minutes: z.enum(["15", "30"]).transform(Number),
+  duration_minutes: z.enum(["15", "25", "30", "50"]).transform(Number),
   learner_note: z.string().max(500).optional(),
 });
 

@@ -100,8 +100,8 @@ export async function PATCH(
       .update({ status: "open", held_by: null, held_until: null } as never)
       .eq("id", booking.slot_id);
 
-    // For 30-min bookings, release the consecutive slot too
-    if (booking.duration_minutes === 30) {
+    // For double-slot bookings (30 or 50 min), release the consecutive slot too
+    if (booking.duration_minutes === 30 || booking.duration_minutes === 50) {
       const { data: primarySlotRaw } = await supabase
         .from("availability_slots")
         .select("end_at, teacher_id")
