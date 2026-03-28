@@ -2,6 +2,12 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
+  // When tab isolation is enabled, skip all cookie-based auth checks.
+  // Each tab manages its own session via sessionStorage on the client side.
+  if (process.env.NEXT_PUBLIC_TAB_ISOLATED_AUTH === "true") {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -41,9 +47,6 @@ export async function updateSession(request: NextRequest) {
     url.searchParams.set("redirect", request.nextUrl.pathname);
     return NextResponse.redirect(url);
   }
-
-  // Allow logged-in users to visit auth pages (useful for switching accounts).
-  // Previously redirected to /dashboard — removed to support multi-account testing.
 
   return supabaseResponse;
 }

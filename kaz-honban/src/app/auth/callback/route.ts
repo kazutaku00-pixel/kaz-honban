@@ -8,6 +8,7 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const role = searchParams.get("role"); // "learner" | "teacher"
   const invite = searchParams.get("invite");
+  const tabIsolated = process.env.NEXT_PUBLIC_TAB_ISOLATED_AUTH === "true";
 
   if (code) {
     const cookieStore = await cookies();
@@ -20,6 +21,8 @@ export async function GET(request: Request) {
             return cookieStore.getAll();
           },
           setAll(cookiesToSet) {
+            // In tab-isolated mode, still set cookies temporarily for the
+            // code exchange to work, but we'll clear them after.
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             );
@@ -28,12 +31,13 @@ export async function GET(request: Request) {
       }
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data: session, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
       const { data: { user } } = await supabase.auth.getUser();
 
+      let redirectPath = "/role-select";
+
       if (user) {
-        // Use service role for DB writes (RLS may block some inserts/updates)
         const adminDb = createServiceRoleClient();
 
         // Check if user already has a role
@@ -52,7 +56,7 @@ export async function GET(request: Request) {
             await adminDb
               .from("learner_profiles")
               .insert({ user_id: user.id } as never);
-            return NextResponse.redirect(`${origin}/teachers`);
+            redirectPath = "/teachers";
           } else if (role === "teacher") {
             if (invite) {
               await adminDb
@@ -64,20 +68,32 @@ export async function GET(request: Request) {
             await adminDb
               .from("teacher_profiles")
               .insert({ user_id: user.id } as never);
-            return NextResponse.redirect(`${origin}/teacher/profile`);
+            redirectPath = "/teacher/profile";
           }
         } else if (existingRoles && existingRoles.length > 0) {
-          // Returning user — redirect based on existing role
           const userRole = (existingRoles[0] as { role: string }).role;
-          if (userRole === "teacher") {
-            return NextResponse.redirect(`${origin}/teacher/dashboard`);
-          }
-          return NextResponse.redirect(`${origin}/dashboard`);
+          redirectPath = userRole === "teacher" ? "/teacher/dashboard" : "/dashboard";
         }
       }
 
-      // Fallback: no role yet
-      return NextResponse.redirect(`${origin}/role-select`);
+      // In tab-isolated mode, pass tokens via URL hash so the client-side
+      // sessionStorage picks them up instead of relying on shared cookies.
+      if (tabIsolated && session?.session) {
+        const { access_token, refresh_token } = session.session;
+        // Clear the auth cookies so they don't leak to other tabs
+        const allCookies = cookieStore.getAll();
+        for (const c of allCookies) {
+          if (c.name.startsWith("sb-")) {
+            cookieStore.set(c.name, "", { maxAge: 0 });
+          }
+        }
+        // Redirect with tokens in hash fragment (never sent to server)
+        return NextResponse.redirect(
+          `${origin}/auth/session-init#access_token=${access_token}&refresh_token=${refresh_token}&redirect=${encodeURIComponent(redirectPath)}`
+        );
+      }
+
+      return NextResponse.redirect(`${origin}${redirectPath}`);
     }
   }
 
