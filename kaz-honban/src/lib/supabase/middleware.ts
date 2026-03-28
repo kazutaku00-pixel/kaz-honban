@@ -42,16 +42,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect logged-in users from auth pages — use simple redirect without DB query
-  const authPaths = ["/login", "/signup"];
-  const isAuthPage = authPaths.some((p) => request.nextUrl.pathname.startsWith(p));
-
-  if (isAuthPage && user) {
-    // Redirect to /dashboard — the app layout will handle role-based routing
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
-  }
+  // Allow logged-in users to visit auth pages (useful for switching accounts).
+  // Previously redirected to /dashboard — removed to support multi-account testing.
 
   return supabaseResponse;
 }
