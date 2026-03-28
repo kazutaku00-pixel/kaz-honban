@@ -36,13 +36,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceRoleClient();
 
     // Call the atomic booking function — handles locking, validation, and insert in one transaction
-    // Custom RPC not in generated Supabase types
-    const rpc = supabase.rpc as unknown as (
-      fn: string,
-      params: Record<string, unknown>
-    ) => Promise<{ data: unknown; error: { message: string } | null }>;
-
-    const { data, error } = await rpc("create_booking_atomic", {
+    const { data, error } = await (supabase.rpc as any)("create_booking_atomic", {
       p_learner_id: user.id,
       p_teacher_id: teacher_id,
       p_slot_id: slot_id,
