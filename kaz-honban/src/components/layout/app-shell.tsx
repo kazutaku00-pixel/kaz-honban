@@ -15,6 +15,7 @@ import {
   LogOut,
   Heart,
   History,
+  LifeBuoy,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/components/providers/user-provider";
@@ -130,6 +131,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* Sidebar footer */}
           <div className="mt-auto pt-4 border-t border-border space-y-2">
             <LanguageToggle />
+            <a
+              href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "support@nihongo.app"}?subject=NihonGo%20Support`}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-text-muted hover:text-text-primary hover:bg-white/5 transition-colors"
+            >
+              <LifeBuoy size={18} />
+              Help &amp; support
+            </a>
             <button
               onClick={handleLogout}
               className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors w-full"

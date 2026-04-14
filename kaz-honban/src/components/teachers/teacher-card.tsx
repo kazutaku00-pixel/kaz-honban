@@ -256,6 +256,13 @@ export function TeacherCard({
               ${teacher.hourly_rate}
             </span>
             <span className="text-[10px] text-text-muted"> /15min</span>
+            {teacher.trial_enabled && (
+              <span className="ml-2 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider rounded bg-emerald-500/15 text-emerald-400 align-middle">
+                {teacher.trial_price && teacher.trial_price > 0
+                  ? `Trial $${teacher.trial_price}`
+                  : "Free trial"}
+              </span>
+            )}
           </div>
           <span className="text-xs text-accent font-medium group-hover:underline">
             {t("teachers.viewProfile")}

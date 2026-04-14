@@ -15,6 +15,10 @@ import {
   Loader2,
   BookOpen,
   ArrowLeft,
+  Sparkles,
+  Target,
+  Mic,
+  NotebookPen,
 } from "lucide-react";
 import type { BookingStatus } from "@/types/database";
 
@@ -270,6 +274,41 @@ export function BookingsListClient({
                     </div>
                     <span>{booking.duration_minutes} min</span>
                   </div>
+
+                  {/* Pre-lesson prep hints — shown when upcoming and not yet joinable */}
+                  {activeTab === "upcoming" && !isJoinable(booking) && !isTeacher && (() => {
+                    const minsUntil = Math.floor(
+                      (new Date(booking.scheduled_start_at).getTime() - now.getTime()) / 60000
+                    );
+                    const label =
+                      minsUntil < 60
+                        ? `Starts in ${minsUntil} min`
+                        : minsUntil < 60 * 24
+                          ? `Starts in ${Math.floor(minsUntil / 60)} h`
+                          : `Starts in ${Math.floor(minsUntil / (60 * 24))} days`;
+                    return (
+                      <div className="rounded-xl bg-white/[0.03] border border-white/5 p-3 space-y-2.5">
+                        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                          <Sparkles className="w-3.5 h-3.5 text-[#FF6B4A]" />
+                          <span className="font-medium">{label} — prepare for your lesson</span>
+                        </div>
+                        <ul className="space-y-1.5 text-xs text-gray-300">
+                          <li className="flex items-start gap-2">
+                            <Target className="w-3.5 h-3.5 text-[#FF6B4A] shrink-0 mt-0.5" />
+                            <span>Write down 1–2 things you want to practice today</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <Mic className="w-3.5 h-3.5 text-[#FF6B4A] shrink-0 mt-0.5" />
+                            <span>Test your mic and camera in a quiet place</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <NotebookPen className="w-3.5 h-3.5 text-[#FF6B4A] shrink-0 mt-0.5" />
+                            <span>Have a notebook or document ready for notes</span>
+                          </li>
+                        </ul>
+                      </div>
+                    );
+                  })()}
 
                   {/* Action buttons */}
                   <div className="flex gap-2 pt-1">

@@ -126,16 +126,11 @@ export function TeacherListClient({ initialTeachers, nextBooking, slotsByTeacher
         break;
       case "recommended":
       default:
-        // Recommended: weighted score of rating + review count + recency
+        // Recommended: composite score — availability is a gate, then rating,
+        // reviews, and a new-teacher boost for the first 14 days.
         list.sort((a, b) => {
-          const scoreA =
-            a.avg_rating * 2 +
-            Math.min(a.review_count, 50) * 0.1 +
-            (isRecent(a.created_at) ? 1 : 0);
-          const scoreB =
-            b.avg_rating * 2 +
-            Math.min(b.review_count, 50) * 0.1 +
-            (isRecent(b.created_at) ? 1 : 0);
+          const scoreA = recommendedScore(a, slotsByTeacher);
+          const scoreB = recommendedScore(b, slotsByTeacher);
           return scoreB - scoreA;
         });
         break;
@@ -250,4 +245,26 @@ export function TeacherListClient({ initialTeachers, nextBooking, slotsByTeacher
 
 function isRecent(createdAt: string) {
   return Date.now() - new Date(createdAt).getTime() < 30 * 24 * 60 * 60 * 1000;
+}
+
+function isVeryNew(createdAt: string) {
+  return Date.now() - new Date(createdAt).getTime() < 14 * 24 * 60 * 60 * 1000;
+}
+
+function recommendedScore(
+  teacher: TeacherWithProfile,
+  slotsByTeacher: Record<string, string[]>,
+): number {
+  const slots = slotsByTeacher[teacher.user_id] ?? [];
+  // Teachers with no upcoming open slots sink to the bottom — the lesson
+  // can't start without availability, regardless of rating.
+  const availabilityGate = slots.length > 0 ? 10 : 0;
+  const ratingScore = teacher.avg_rating * 2;
+  const reviewScore = Math.min(teacher.review_count, 50) * 0.1;
+  const newBoost = isVeryNew(teacher.created_at)
+    ? 2
+    : isRecent(teacher.created_at)
+      ? 0.5
+      : 0;
+  return availabilityGate + ratingScore + reviewScore + newBoost;
 }
