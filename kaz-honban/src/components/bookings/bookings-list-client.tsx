@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import {
   Calendar,
@@ -64,8 +65,14 @@ export function BookingsListClient({
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => new Date());
 
-  const now = new Date();
+  // Refresh `now` every 30s so isJoinable stays accurate
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const upcoming = bookings.filter(
     (b) =>
@@ -87,15 +94,16 @@ export function BookingsListClient({
 
   const displayedBookings = activeTab === "upcoming" ? upcoming : past;
 
-  function isJoinable(booking: BookingItem) {
+  const isJoinable = useCallback((booking: BookingItem) => {
     if (booking.status !== "confirmed" && booking.status !== "in_session") return false;
     const start = new Date(booking.scheduled_start_at);
     const diff = start.getTime() - now.getTime();
     return diff <= 15 * 60 * 1000; // within 15 min of start
-  }
+  }, [now]);
 
   async function handleCancel(bookingId: string) {
     setCancellingId(bookingId);
+    setError(null);
     try {
       const res = await fetch(`/api/bookings/${bookingId}/cancel`, {
         method: "PATCH",
@@ -104,8 +112,10 @@ export function BookingsListClient({
         router.refresh();
       } else {
         const data = await res.json();
-        alert(data.error || "Failed to cancel booking");
+        setError(data.error || "Failed to cancel booking");
       }
+    } catch {
+      setError("Failed to cancel booking. Please try again.");
     } finally {
       setCancellingId(null);
     }
@@ -113,14 +123,9 @@ export function BookingsListClient({
 
   async function handleJoin(bookingId: string) {
     setJoiningId(bookingId);
+    setError(null);
     try {
-      const res = await fetch(`/api/bookings/${bookingId}/join`, {
-        method: "POST",
-      });
-      const data = await res.json();
-      if (res.ok && data.url) {
-        window.open(`${data.url}?t=${data.token}`, "_blank");
-      }
+      router.push(`/room/${bookingId}`);
     } finally {
       setJoiningId(null);
     }
@@ -169,9 +174,9 @@ export function BookingsListClient({
         </div>
 
         {/* Error */}
-        {fetchError && (
+        {(fetchError || error) && (
           <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-red-400 text-sm">
-            {fetchError}
+            {fetchError || error}
           </div>
         )}
 
@@ -211,9 +216,11 @@ export function BookingsListClient({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {other?.avatar_url ? (
-                        <img
+                        <Image
                           src={other.avatar_url}
                           alt={other.display_name}
+                          width={40}
+                          height={40}
                           className="w-10 h-10 rounded-full object-cover border border-white/10"
                         />
                       ) : (

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -13,6 +14,7 @@ import {
   Languages,
   Camera,
 } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { LEVELS, LANGUAGES, LEARNING_GOALS } from "@/lib/validations";
@@ -112,6 +114,17 @@ export function SettingsClient({
   const isTeacher = roles.includes("teacher");
   const isLearner = roles.includes("learner");
 
+  const hasChanges = useMemo(() => (
+    displayName !== initialProfile.display_name ||
+    timezone !== initialProfile.timezone ||
+    JSON.stringify(selectedGoals) !== JSON.stringify(initialGoals.tags) ||
+    customGoal !== initialGoals.custom ||
+    japaneseLevel !== (initialLearner?.japanese_level ?? "none") ||
+    nativeLanguage !== (initialLearner?.native_language ?? "en")
+  ), [displayName, timezone, selectedGoals, customGoal, japaneseLevel, nativeLanguage, initialProfile, initialGoals, initialLearner]);
+
+  useUnsavedChanges(hasChanges && !saved);
+
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -148,6 +161,11 @@ export function SettingsClient({
     setSaved(false);
     try {
       const supabase = createClient();
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) {
+        setError("Session expired. Please log in again.");
+        return;
+      }
 
       // Update profile
       const { error: profileError } = await supabase
@@ -156,7 +174,7 @@ export function SettingsClient({
           display_name: displayName.trim(),
           timezone,
         } as never)
-        .eq("id", (await supabase.auth.getUser()).data.user!.id);
+        .eq("id", currentUser.id);
 
       if (profileError) {
         setError("Failed to update profile");
@@ -165,7 +183,7 @@ export function SettingsClient({
 
       // Update learner profile if applicable
       if (isLearner && initialLearner) {
-        const userId = (await supabase.auth.getUser()).data.user!.id;
+        const userId = currentUser.id;
         const goalsStr =
           selectedGoals.length || customGoal.trim()
             ? `${selectedGoals.join(",")}|${customGoal.trim()}`
@@ -235,9 +253,11 @@ export function SettingsClient({
             <div className="flex items-center gap-3">
               <div className="relative">
                 {avatarUrl ? (
-                  <img
+                  <Image
                     src={avatarUrl}
                     alt={displayName}
+                    width={56}
+                    height={56}
                     className="w-14 h-14 rounded-xl object-cover"
                   />
                 ) : (

@@ -51,10 +51,10 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Only confirmed bookings can be cancelled
-    if (booking.status !== "confirmed") {
+    // Only confirmed or in_session bookings can be cancelled
+    if (booking.status !== "confirmed" && booking.status !== "in_session") {
       return NextResponse.json(
-        { error: "Only confirmed bookings can be cancelled" },
+        { error: "This booking cannot be cancelled" },
         { status: 400 }
       );
     }

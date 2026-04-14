@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Star, ArrowRight, CheckCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -30,6 +32,8 @@ export function ReviewFormClient({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(alreadyReviewed);
   const [error, setError] = useState<string | null>(null);
+
+  useUnsavedChanges((rating > 0 || comment.length > 0) && !submitted);
 
   async function handleSubmit() {
     if (rating === 0) return;
@@ -81,9 +85,11 @@ export function ReviewFormClient({
             </h2>
             <div className="flex items-center gap-4 mb-4">
               {booking.teacher_avatar ? (
-                <img
+                <Image
                   src={booking.teacher_avatar}
                   alt={booking.teacher_name}
+                  width={48}
+                  height={48}
                   className="w-12 h-12 rounded-xl object-cover"
                 />
               ) : (
@@ -152,9 +158,11 @@ export function ReviewFormClient({
       {/* Teacher info */}
       <div className="flex items-center justify-center gap-4">
         {booking.teacher_avatar ? (
-          <img
+          <Image
             src={booking.teacher_avatar}
             alt={booking.teacher_name}
+            width={64}
+            height={64}
             className="w-16 h-16 rounded-xl object-cover"
           />
         ) : (

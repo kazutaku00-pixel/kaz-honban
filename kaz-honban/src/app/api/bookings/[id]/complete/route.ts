@@ -41,10 +41,10 @@ export async function POST(
       );
     }
 
-    // Must be in_session or confirmed
-    if (booking.status !== "in_session" && booking.status !== "confirmed") {
+    // Must be in_session — lesson must have actually started
+    if (booking.status !== "in_session") {
       return NextResponse.json(
-        { error: "Booking cannot be completed in its current state" },
+        { error: "Lesson must be in session before it can be completed" },
         { status: 400 }
       );
     }

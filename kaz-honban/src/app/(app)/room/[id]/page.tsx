@@ -15,9 +15,11 @@ import {
   CalendarDays,
   MessageSquare,
 } from "lucide-react";
+import Image from "next/image";
 import { RoomChat } from "@/components/room/room-chat";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/lib/i18n";
 
 interface RoomData {
   url: string;
@@ -39,6 +41,7 @@ interface BookingInfo {
 export default function VideoRoomPage() {
   const params = useParams();
   const router = useRouter();
+  const { t: tr } = useI18n();
   const bookingId = params.id as string;
 
   const [booking, setBooking] = useState<BookingInfo | null>(null);
@@ -47,6 +50,7 @@ export default function VideoRoomPage() {
   const [error, setError] = useState<string | null>(null);
   const [hasCamera, setHasCamera] = useState(false);
   const [hasMic, setHasMic] = useState(false);
+  const [deviceError, setDeviceError] = useState<string | null>(null);
   const [cameraOn, setCameraOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
   const [remainingTime, setRemainingTime] = useState<string>("");
@@ -92,22 +96,38 @@ export default function VideoRoomPage() {
     fetchBooking();
   }, [bookingId, router]);
 
-  // Device check
+  // Device check — distinguish permission denial from hardware absence
   useEffect(() => {
     if (phase !== "prejoin") return;
     async function checkDevices() {
+      if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+        setDeviceError("Your browser does not support camera and microphone access.");
+        return;
+      }
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         setHasCamera(true);
         setHasMic(true);
+        setDeviceError(null);
         stream.getTracks().forEach((t) => t.stop());
-      } catch {
+      } catch (err) {
+        const name = (err as { name?: string })?.name ?? "";
+        if (name === "NotAllowedError" || name === "SecurityError") {
+          setDeviceError("Camera/microphone access was blocked. Please allow access in your browser settings and reload.");
+          return;
+        }
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           setHasMic(true);
+          setDeviceError("No camera detected. You can still join with audio only.");
           stream.getTracks().forEach((t) => t.stop());
-        } catch {
-          // No devices
+        } catch (err2) {
+          const name2 = (err2 as { name?: string })?.name ?? "";
+          if (name2 === "NotAllowedError" || name2 === "SecurityError") {
+            setDeviceError("Camera/microphone access was blocked. Please allow access in your browser settings and reload.");
+          } else {
+            setDeviceError("No camera or microphone detected. Check your device and reload.");
+          }
         }
       }
     }
@@ -168,9 +188,11 @@ export default function VideoRoomPage() {
     if (now > startTime + 3 * 60 * 1000) {
       const lateMinutes = Math.floor((now - startTime) / 60000);
       const isTeacher = userId === booking.teacher_id;
-      if (!isTeacher) {
-        setLateMessage(`Teacher is ${lateMinutes} minutes late`);
-      }
+      setLateMessage(
+        isTeacher
+          ? `Student is ${lateMinutes} min late. Please wait a few minutes.`
+          : `Teacher is ${lateMinutes} min late. Please wait a few minutes.`
+      );
     }
   }, [booking, userId]);
 
@@ -210,7 +232,7 @@ export default function VideoRoomPage() {
       <div className="fixed inset-0 bg-bg-primary flex items-center justify-center z-50">
         <div className="text-center space-y-4">
           <Loader2 size={40} className="animate-spin text-accent mx-auto" />
-          <p className="text-text-muted">Loading room...</p>
+          <p className="text-text-muted">{tr("room.loading")}</p>
         </div>
       </div>
     );
@@ -221,14 +243,28 @@ export default function VideoRoomPage() {
       <div className="fixed inset-0 bg-bg-primary flex items-center justify-center z-50">
         <div className="max-w-sm text-center space-y-4 px-6">
           <AlertTriangle size={48} className="text-red-400 mx-auto" />
-          <p className="text-text-primary font-semibold">Something went wrong</p>
+          <p className="text-text-primary font-semibold">{tr("room.errorTitle")}</p>
           <p className="text-sm text-text-muted">{error}</p>
-          <button
-            onClick={() => router.push("/bookings")}
-            className="px-6 py-3 rounded-xl bg-white/5 text-text-secondary font-medium text-sm hover:bg-white/10 transition"
-          >
-            Back to Bookings
-          </button>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => {
+                setError(null);
+                setPhase(booking ? "prejoin" : "loading");
+                if (!booking) {
+                  router.refresh();
+                }
+              }}
+              className="px-6 py-3 rounded-xl bg-accent text-white font-semibold text-sm hover:bg-accent/90 transition"
+            >
+              {tr("room.tryAgain")}
+            </button>
+            <button
+              onClick={() => router.push("/bookings")}
+              className="px-6 py-3 rounded-xl bg-white/5 text-text-secondary font-medium text-sm hover:bg-white/10 transition"
+            >
+              {tr("room.back")}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -242,13 +278,15 @@ export default function VideoRoomPage() {
           {/* Booking info */}
           <div className="bg-bg-secondary rounded-2xl border border-border p-6 space-y-4">
             <h1 className="text-xl font-bold text-text-primary font-[family-name:var(--font-display)] text-center">
-              Ready to join?
+              {tr("room.readyToJoin")}
             </h1>
             <div className="flex items-center gap-4 justify-center">
               {otherPerson?.avatar_url ? (
-                <img
+                <Image
                   src={otherPerson.avatar_url}
                   alt={otherPerson.display_name}
+                  width={64}
+                  height={64}
                   className="w-16 h-16 rounded-xl object-cover"
                 />
               ) : (
@@ -286,11 +324,13 @@ export default function VideoRoomPage() {
           {/* Device status */}
           <div className="bg-bg-secondary rounded-2xl border border-border p-6 space-y-4">
             <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">
-              Device Check
+              {tr("room.deviceCheck")}
             </h2>
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setCameraOn(!cameraOn)}
+                aria-label={cameraOn ? "Turn camera off" : "Turn camera on"}
+                aria-pressed={cameraOn}
                 className={cn(
                   "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl transition",
                   hasCamera
@@ -302,11 +342,13 @@ export default function VideoRoomPage() {
               >
                 {cameraOn && hasCamera ? <Video size={24} /> : <VideoOff size={24} />}
                 <span className="text-xs font-medium">
-                  {hasCamera ? (cameraOn ? "Camera On" : "Camera Off") : "No Camera"}
+                  {hasCamera ? (cameraOn ? tr("room.cameraOn") : tr("room.cameraOff")) : tr("room.noCamera")}
                 </span>
               </button>
               <button
                 onClick={() => setMicOn(!micOn)}
+                aria-label={micOn ? "Mute microphone" : "Unmute microphone"}
+                aria-pressed={micOn}
                 className={cn(
                   "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl transition",
                   hasMic
@@ -318,11 +360,19 @@ export default function VideoRoomPage() {
               >
                 {micOn && hasMic ? <Mic size={24} /> : <MicOff size={24} />}
                 <span className="text-xs font-medium">
-                  {hasMic ? (micOn ? "Mic On" : "Mic Off") : "No Mic"}
+                  {hasMic ? (micOn ? tr("room.micOn") : tr("room.micOff")) : tr("room.noMic")}
                 </span>
               </button>
             </div>
           </div>
+
+          {/* Device error */}
+          {deviceError && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-start gap-2 text-red-300 text-sm">
+              <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+              <span>{deviceError}</span>
+            </div>
+          )}
 
           {/* Late message */}
           {lateMessage && (
@@ -348,14 +398,14 @@ export default function VideoRoomPage() {
             ) : (
               <Video size={20} />
             )}
-            Join Room
+            {tr("room.join")}
           </button>
 
           <button
             onClick={() => router.push("/bookings")}
             className="w-full py-3 text-center text-sm text-text-muted hover:text-text-secondary transition"
           >
-            Back to Bookings
+            {tr("room.back")}
           </button>
         </div>
       </div>
@@ -373,7 +423,7 @@ export default function VideoRoomPage() {
         <div className="flex items-center justify-between px-4 py-2 bg-bg-secondary/90 backdrop-blur-sm border-b border-border">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-sm text-text-primary font-medium">Live</span>
+            <span className="text-sm text-text-primary font-medium">{tr("room.live")}</span>
           </div>
           <div className={cn(
             "flex items-center gap-2 px-3 py-1 rounded-lg transition-all",
@@ -396,14 +446,14 @@ export default function VideoRoomPage() {
               )}
             >
               <MessageSquare size={14} />
-              Chat
+              {tr("room.chat")}
             </button>
             <button
               onClick={handleLeave}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/20 text-red-400 font-medium text-sm hover:bg-red-500/30 transition"
             >
               <PhoneOff size={14} />
-              Leave
+              {tr("room.leave")}
             </button>
           </div>
         </div>
@@ -445,7 +495,7 @@ export default function VideoRoomPage() {
               onClick={() => setChatOpen(false)}
               className="px-4 py-3 bg-bg-secondary border-b border-border text-text-muted text-sm text-center"
             >
-              Tap to close chat
+              {tr("room.closeChat")}
             </button>
             <div className="flex-1">
               <RoomChat

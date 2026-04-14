@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -22,10 +23,9 @@ import { createClient } from "@/lib/supabase/client";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 
 const learnerNav = [
+  { href: "/dashboard", labelKey: "nav.home", icon: Home },
   { href: "/teachers", labelKey: "nav.search", icon: Search },
   { href: "/bookings", labelKey: "nav.bookings", icon: CalendarDays },
-  { href: "/favorites", labelKey: "nav.favorites", icon: Heart },
-  { href: "/history", labelKey: "nav.history", icon: History },
   { href: "/settings", labelKey: "nav.profile", icon: User },
 ];
 
@@ -52,7 +52,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const isTeacher = roles.includes("teacher");
   const navItems = isTeacher ? teacherNav : learnerNav;
-  const homeHref = isTeacher ? "/teacher/dashboard" : "/teachers";
+  const homeHref = isTeacher ? "/teacher/dashboard" : "/dashboard";
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -76,9 +76,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {profile && (
             <div className="flex items-center gap-2">
               {profile.avatar_url ? (
-                <img
+                <Image
                   src={profile.avatar_url}
                   alt={profile.display_name}
+                  width={32}
+                  height={32}
                   className="w-8 h-8 rounded-full object-cover"
                 />
               ) : (

@@ -89,9 +89,17 @@ export function ScheduleClient({ templates: initialTemplates, slots: initialSlot
   }
 
   async function deleteTemplate(id: string) {
-    const supabase = createClient();
-    await supabase.from("schedule_templates").update({ is_active: false } as never).eq("id", id);
-    setTemplates(templates.filter((t) => t.id !== id));
+    try {
+      const supabase = createClient();
+      const { error: deleteError } = await supabase.from("schedule_templates").update({ is_active: false } as never).eq("id", id);
+      if (deleteError) {
+        setError("Failed to delete template");
+        return;
+      }
+      setTemplates(templates.filter((t) => t.id !== id));
+    } catch {
+      setError("Failed to delete template");
+    }
   }
 
   async function generateSlots() {

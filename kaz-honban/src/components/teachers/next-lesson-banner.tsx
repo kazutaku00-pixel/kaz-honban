@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Video, Clock, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LocalTime } from "@/components/ui/local-time";
@@ -42,9 +43,11 @@ export function NextLessonBanner({ booking }: NextLessonBannerProps) {
     >
       {/* Teacher avatar */}
       {booking.teacher?.avatar_url ? (
-        <img
+        <Image
           src={booking.teacher.avatar_url}
           alt={booking.teacher.display_name}
+          width={44}
+          height={44}
           className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
         />
       ) : (

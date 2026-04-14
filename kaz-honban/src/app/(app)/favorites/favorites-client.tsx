@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Heart } from "lucide-react";
 import { TeacherCard } from "@/components/teachers/teacher-card";
@@ -11,14 +12,23 @@ interface FavoritesClientProps {
 
 export function FavoritesClient({ teachers }: FavoritesClientProps) {
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
 
   async function handleToggleFavorite(teacherId: string) {
-    await fetch("/api/favorites", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ teacher_id: teacherId }),
-    });
-    router.refresh();
+    try {
+      const res = await fetch("/api/favorites", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teacher_id: teacherId }),
+      });
+      if (!res.ok) {
+        setError("Failed to remove favorite");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Failed to remove favorite");
+    }
   }
 
   return (
@@ -35,6 +45,12 @@ export function FavoritesClient({ teachers }: FavoritesClientProps) {
           Favorite Teachers
         </h1>
       </div>
+
+      {error && (
+        <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-red-400 text-sm">
+          {error}
+        </div>
+      )}
 
       {teachers.length === 0 ? (
         <div className="text-center py-16 space-y-4">

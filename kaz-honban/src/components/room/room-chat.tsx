@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { Send, ImagePlus, X, Loader2 } from "lucide-react";
@@ -53,7 +54,7 @@ export function RoomChat({ bookingId, userId, otherName, isTeacher }: RoomChatPr
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     async function load() {
@@ -65,7 +66,7 @@ export function RoomChat({ bookingId, userId, otherName, isTeacher }: RoomChatPr
       if (data) setMessages(data as Message[]);
     }
     load();
-  }, [bookingId]);
+  }, [bookingId, supabase]);
 
   useEffect(() => {
     const channel = supabase
@@ -83,7 +84,7 @@ export function RoomChat({ bookingId, userId, otherName, isTeacher }: RoomChatPr
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [bookingId]);
+  }, [bookingId, supabase]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -185,8 +186,11 @@ export function RoomChat({ bookingId, userId, otherName, isTeacher }: RoomChatPr
           isMine ? "bg-accent text-white rounded-br-md" : "bg-white/10 text-text-primary rounded-bl-md"
         )}>
           {msg.image_url && (
-            <img
+            <Image
               src={msg.image_url} alt="shared"
+              width={300}
+              height={200}
+              unoptimized
               className="rounded-lg max-w-full max-h-48 object-contain cursor-pointer"
               onClick={() => window.open(msg.image_url!, "_blank")}
             />
@@ -225,7 +229,7 @@ export function RoomChat({ bookingId, userId, otherName, isTeacher }: RoomChatPr
       {previewUrl && (
         <div className="px-3 pb-1">
           <div className="relative inline-block">
-            <img src={previewUrl} alt="preview" className="h-20 rounded-lg object-cover" />
+            <Image src={previewUrl} alt="preview" width={300} height={200} unoptimized className="h-20 rounded-lg object-cover" />
             <button onClick={clearPending} className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center">
               <X size={12} />
             </button>

@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Star, Heart, Play } from "lucide-react";
+import Image from "next/image";
+import { Star, Heart, Play, BadgeCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import type { TeacherWithProfile } from "@/types/database";
@@ -109,10 +110,12 @@ export function TeacherCard({
         ) : youtubeId ? (
           <>
             {/* YouTube thumbnail */}
-            <img
+            <Image
               src={`https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`}
               alt={profile.display_name}
+              fill
               className="absolute inset-0 w-full h-full object-cover"
+              unoptimized
             />
             <div className="absolute inset-0 flex items-center justify-center bg-black/20">
               <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
@@ -129,9 +132,10 @@ export function TeacherCard({
             )}
           >
             {profile.avatar_url ? (
-              <img
+              <Image
                 src={profile.avatar_url}
                 alt={profile.display_name}
+                fill
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -176,9 +180,11 @@ export function TeacherCard({
         {/* Name + rating row */}
         <div className="flex items-center gap-3 mb-2">
           {profile.avatar_url ? (
-            <img
+            <Image
               src={profile.avatar_url}
               alt={profile.display_name}
+              width={36}
+              height={36}
               className="w-9 h-9 rounded-full object-cover border-2 border-bg-secondary -mt-7 relative z-10 shadow-lg"
             />
           ) : (
@@ -192,9 +198,12 @@ export function TeacherCard({
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-text-primary truncate text-sm">
-              {profile.display_name}
-            </h3>
+            <div className="flex items-center gap-1.5">
+              <h3 className="font-semibold text-text-primary truncate text-sm">
+                {profile.display_name}
+              </h3>
+              <BadgeCheck size={13} className="text-emerald-400 shrink-0" />
+            </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <Star size={13} className="text-gold fill-gold" />

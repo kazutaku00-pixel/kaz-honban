@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Search, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserActiveToggle } from "@/components/admin/user-active-toggle";
@@ -89,9 +90,11 @@ export function UsersSearchClient({ users }: UsersSearchClientProps) {
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 {user.avatar_url ? (
-                  <img
+                  <Image
                     src={user.avatar_url}
                     alt={user.display_name}
+                    width={40}
+                    height={40}
                     className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                   />
                 ) : (

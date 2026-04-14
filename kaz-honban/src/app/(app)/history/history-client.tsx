@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   ArrowLeft,
   Calendar,
@@ -75,9 +76,11 @@ export function HistoryClient({ bookings }: { bookings: HistoryBooking[] }) {
                   className="w-full p-4 flex items-center gap-3 text-left"
                 >
                   {booking.teacher_avatar ? (
-                    <img
+                    <Image
                       src={booking.teacher_avatar}
                       alt={booking.teacher_name}
+                      width={40}
+                      height={40}
                       className="w-10 h-10 rounded-full object-cover border border-border"
                     />
                   ) : (

@@ -132,6 +132,7 @@ export interface Message {
   booking_id: string;
   sender_id: string;
   body: string;
+  image_url: string | null;
   is_read: boolean;
   created_at: string;
 }

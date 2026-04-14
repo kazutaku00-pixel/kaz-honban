@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import {
   Clock,
@@ -55,9 +57,10 @@ export function BookingConfirmClient({
     ? Intl.DateTimeFormat().resolvedOptions().timeZone
     : "UTC";
 
-  const startDate = new Date(slot.start_at);
-  const endDate = new Date(
-    startDate.getTime() + durationMinutes * 60 * 1000
+  const startDate = useMemo(() => new Date(slot.start_at), [slot.start_at]);
+  const endDate = useMemo(
+    () => new Date(startDate.getTime() + durationMinutes * 60 * 1000),
+    [startDate, durationMinutes]
   );
 
   const formattedDate = startDate.toLocaleDateString("en-US", {
@@ -90,6 +93,8 @@ export function BookingConfirmClient({
   })();
 
   const isBeta = process.env.NEXT_PUBLIC_PAYMENT_ENABLED !== "true";
+
+  useUnsavedChanges(!isConfirmed);
 
   // Check for overlapping bookings on mount
   useEffect(() => {
@@ -282,9 +287,11 @@ export function BookingConfirmClient({
         <div className="rounded-xl bg-white/5 border border-white/10 p-5 space-y-4">
           <div className="flex items-center gap-4">
             {teacher.avatar_url ? (
-              <img
+              <Image
                 src={teacher.avatar_url}
                 alt={teacher.display_name}
+                width={56}
+                height={56}
                 className="w-14 h-14 rounded-full object-cover border-2 border-[#FF6B4A]/30"
               />
             ) : (

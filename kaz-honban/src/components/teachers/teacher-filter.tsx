@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { CATEGORIES, LANGUAGES, LEVELS } from "@/lib/validations";
-import { Search, ChevronDown, X } from "lucide-react";
+import { Search, ChevronDown, X, Check } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
 
@@ -12,7 +12,7 @@ export interface FilterState {
   keyword: string;
   category: string;
   priceRange: string;
-  language: string;
+  languages: string[];   // multi-select (OR logic)
   level: string;
   sort: SortOption;
   dayOfWeek: string;
@@ -99,6 +99,107 @@ function Dropdown({
   );
 }
 
+/** Multi-select dropdown with checkboxes (OR logic) */
+function MultiSelectDropdown({
+  label,
+  values,
+  options,
+  onChange,
+}: {
+  label: string;
+  values: string[];
+  options: { value: string; label: string }[];
+  onChange: (v: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const isActive = values.length > 0;
+  const buttonLabel = isActive
+    ? values.length === 1
+      ? options.find((o) => o.value === values[0])?.label ?? label
+      : `${values.length} selected`
+    : label;
+
+  function toggle(val: string) {
+    if (values.includes(val)) {
+      onChange(values.filter((v) => v !== val));
+    } else {
+      onChange([...values, val]);
+    }
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={cn(
+          "flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap",
+          isActive
+            ? "border-accent/40 bg-accent-subtle text-accent"
+            : "border-border bg-bg-secondary text-text-secondary hover:border-border-hover hover:text-text-primary"
+        )}
+      >
+        {buttonLabel}
+        {isActive ? (
+          <X
+            size={12}
+            className="ml-0.5 hover:text-accent"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange([]);
+              setOpen(false);
+            }}
+          />
+        ) : (
+          <ChevronDown size={12} className={cn("transition-transform", open && "rotate-180")} />
+        )}
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-30 min-w-[180px] max-h-[280px] overflow-y-auto bg-bg-secondary border border-border rounded-xl shadow-xl">
+          {options.map((opt) => {
+            const checked = values.includes(opt.value);
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => toggle(opt.value)}
+                className={cn(
+                  "w-full flex items-center gap-2 text-left px-4 py-2 text-xs transition-colors",
+                  checked
+                    ? "bg-accent-subtle text-accent"
+                    : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
+                )}
+              >
+                <span
+                  className={cn(
+                    "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0",
+                    checked ? "border-accent bg-accent" : "border-border"
+                  )}
+                >
+                  {checked && <Check size={9} className="text-white" />}
+                </span>
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface TeacherFilterProps {
   filters: FilterState;
   onChange: (filters: FilterState) => void;
@@ -122,10 +223,7 @@ export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
     { value: "40-100", label: "$40+" },
   ];
 
-  const languageOptions = [
-    { value: "", label: t("teachers.allLanguages") },
-    ...LANGUAGES.map((l) => ({ value: l.value, label: l.label })),
-  ];
+  const languageOptions = LANGUAGES.map((l) => ({ value: l.value, label: l.label }));
 
   const levelOptions = [
     { value: "", label: t("teachers.allLevels") },
@@ -161,14 +259,13 @@ export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
   const hasActiveFilters =
     filters.category ||
     filters.priceRange ||
-    filters.language ||
+    filters.languages.length > 0 ||
     filters.level ||
     filters.dayOfWeek ||
     filters.timeSlot;
 
   return (
     <div>
-      {/* Search + all filters in one row */}
       <div className="flex gap-1.5 flex-wrap items-center">
         <Dropdown
           label={t("teachers.category")}
@@ -194,12 +291,15 @@ export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
           options={priceRanges}
           onChange={(v) => update({ priceRange: v })}
         />
-        <Dropdown
+
+        {/* Multi-select language filter */}
+        <MultiSelectDropdown
           label={t("teachers.language")}
-          value={filters.language}
+          values={filters.languages}
           options={languageOptions}
-          onChange={(v) => update({ language: v })}
+          onChange={(v) => update({ languages: v })}
         />
+
         <Dropdown
           label={t("teachers.level")}
           value={filters.level}
@@ -207,7 +307,6 @@ export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
           onChange={(v) => update({ level: v })}
         />
 
-        {/* Divider */}
         <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
 
         <Dropdown
@@ -217,7 +316,6 @@ export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
           onChange={(v) => update({ sort: v as SortOption })}
         />
 
-        {/* Clear all filters */}
         {hasActiveFilters && (
           <button
             type="button"
@@ -226,7 +324,7 @@ export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
                 ...filters,
                 category: "",
                 priceRange: "",
-                language: "",
+                languages: [],
                 level: "",
                 dayOfWeek: "",
                 timeSlot: "",
@@ -238,10 +336,8 @@ export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
           </button>
         )}
 
-        {/* Spacer pushes search to the right */}
         <div className="flex-1" />
 
-        {/* Compact search — right-aligned */}
         <div className="relative">
           <input
             type="text"
@@ -264,4 +360,3 @@ export function TeacherFilter({ filters, onChange }: TeacherFilterProps) {
     </div>
   );
 }
-

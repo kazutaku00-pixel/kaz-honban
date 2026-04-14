@@ -22,7 +22,7 @@ export function TeacherListClient({ initialTeachers, nextBooking, slotsByTeacher
     keyword: "",
     category: "",
     priceRange: "",
-    language: "",
+    languages: [],
     level: "",
     sort: "recommended",
     dayOfWeek: "",
@@ -60,9 +60,11 @@ export function TeacherListClient({ initialTeachers, nextBooking, slotsByTeacher
       );
     }
 
-    // Language
-    if (filters.language) {
-      list = list.filter((t) => t.languages.includes(filters.language));
+    // Language — OR logic: teacher must speak at least one of the selected languages
+    if (filters.languages.length > 0) {
+      list = list.filter((t) =>
+        filters.languages.some((lang) => t.languages.includes(lang))
+      );
     }
 
     // Level

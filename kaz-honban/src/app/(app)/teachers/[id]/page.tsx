@@ -1,12 +1,15 @@
-import Link from "next/link";
+import Image from "next/image";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Star, Globe, GraduationCap, BookOpen, Award, Play } from "lucide-react";
+import { Star, Globe, BookOpen, BadgeCheck, Play } from "lucide-react";
 import { CATEGORIES, LANGUAGES, LEVELS } from "@/lib/validations";
 import { AvailableSlots } from "@/components/teachers/available-slots";
 import { TeacherDetailTabs } from "@/components/teachers/teacher-detail-tabs";
 import { IntroVideoPlayer } from "@/components/teachers/intro-video-player";
+import { TeacherShareButton } from "@/components/teachers/teacher-share-button";
+import { TeacherStickyCTA } from "@/components/teachers/teacher-sticky-cta";
+import { BackButton } from "@/components/teachers/back-button";
 import { T } from "@/components/i18n-text";
 import type { TeacherWithProfile, Review, Profile } from "@/types/database";
 import type { Metadata } from "next";
@@ -84,6 +87,7 @@ export default async function TeacherDetailPage({ params }: PageProps) {
   const reviewList = (reviews ?? []) as ReviewWithReviewer[];
   const profile = t.profile;
   const initial = (profile.display_name ?? "?")[0].toUpperCase();
+  const colorIdx = initial.charCodeAt(0) % avatarColors.length;
 
   // Determine video type
   const hasDirectVideo = t.intro_video_url ? isDirectVideo(t.intro_video_url) : false;
@@ -91,6 +95,7 @@ export default async function TeacherDetailPage({ params }: PageProps) {
     ? extractYouTubeId(t.intro_video_url)
     : null;
   const hasVideo = hasDirectVideo || !!youtubeId;
+  const has30min = t.lesson_duration_options.includes(30);
 
   // ─── About Tab Content ───
   const aboutContent = (
@@ -105,34 +110,58 @@ export default async function TeacherDetailPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Teaching Style & Certifications */}
-      {(t.teaching_style || t.certifications) && (
-        <div className="grid gap-4 md:grid-cols-2">
-          {t.teaching_style && (
-            <div className="bg-bg-secondary rounded-2xl border border-border p-5">
-              <h3 className="text-sm font-semibold text-text-primary mb-2">
-                <T k="detail.teachingStyle" />
-              </h3>
-              <p className="text-sm text-text-secondary leading-relaxed">
-                {t.teaching_style}
-              </p>
+      {/* About me cards */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {t.teaching_style && (
+          <div className="bg-bg-secondary rounded-2xl border border-border p-5">
+            <h3 className="text-sm font-semibold text-text-primary mb-2 flex items-center gap-1.5">
+              <Globe size={14} className="text-accent" />
+              <T k="detail.teachingStyle" />
+            </h3>
+            <p className="text-sm text-text-secondary leading-relaxed">
+              {t.teaching_style}
+            </p>
+          </div>
+        )}
+        {t.certifications && (
+          <div className="bg-bg-secondary rounded-2xl border border-border p-5">
+            <h3 className="text-sm font-semibold text-text-primary mb-2 flex items-center gap-1.5">
+              <BadgeCheck size={14} className="text-emerald-400" />
+              <T k="detail.certifications" />
+            </h3>
+            <p className="text-sm text-text-secondary leading-relaxed">
+              {t.certifications}
+            </p>
+          </div>
+        )}
+        {/* Stats card */}
+        <div className="bg-bg-secondary rounded-2xl border border-border p-5">
+          <h3 className="text-sm font-semibold text-text-primary mb-3"><T k="detail.stats" /></h3>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-text-muted flex items-center gap-1">
+                <Star size={12} className="text-gold fill-gold" /> <T k="detail.avgRating" />
+              </span>
+              <span className="text-sm font-semibold text-text-primary">{t.avg_rating.toFixed(1)} / 5.0</span>
             </div>
-          )}
-          {t.certifications && (
-            <div className="bg-bg-secondary rounded-2xl border border-border p-5">
-              <h3 className="text-sm font-semibold text-text-primary mb-2">
-                <T k="detail.certifications" />
-              </h3>
-              <p className="text-sm text-text-secondary leading-relaxed">
-                {t.certifications}
-              </p>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-text-muted flex items-center gap-1">
+                <BookOpen size={12} /> <T k="detail.reviewCount" />
+              </span>
+              <span className="text-sm font-semibold text-text-primary">{t.review_count}</span>
             </div>
-          )}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-text-muted flex items-center gap-1">
+                <BookOpen size={12} /> <T k="detail.totalLessons" />
+              </span>
+              <span className="text-sm font-semibold text-text-primary">{t.total_lessons}</span>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
 
-      {/* Intro video — autoplay muted */}
-      {hasVideo && (
+      {/* Intro video — full width in About tab (for non-hero video) */}
+      {hasVideo && !hasDirectVideo && (
         <div>
           <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
             <Play size={16} className="text-accent" />
@@ -149,7 +178,7 @@ export default async function TeacherDetailPage({ params }: PageProps) {
 
   // ─── Schedule Tab Content ───
   const scheduleContent = (
-    <div className="bg-bg-secondary rounded-2xl border border-border p-5 md:p-6">
+    <div id="available-slots" className="bg-bg-secondary rounded-2xl border border-border p-5 md:p-6">
       <AvailableSlots teacherId={t.user_id} />
     </div>
   );
@@ -170,9 +199,11 @@ export default async function TeacherDetailPage({ params }: PageProps) {
             >
               <div className="flex items-center gap-3 mb-3">
                 {review.reviewer.avatar_url ? (
-                  <img
+                  <Image
                     src={review.reviewer.avatar_url}
                     alt={review.reviewer.display_name}
+                    width={32}
+                    height={32}
                     className="w-8 h-8 rounded-lg object-cover"
                   />
                 ) : (
@@ -215,98 +246,199 @@ export default async function TeacherDetailPage({ params }: PageProps) {
   );
 
   return (
-    <div className="min-h-screen bg-bg-primary pb-24 md:pb-12">
-      {/* Back link */}
-      <div className="mx-auto max-w-4xl px-5 pt-4">
-        <Link
-          href="/teachers"
-          className="text-sm text-text-secondary hover:text-text-primary transition-colors"
-        >
-          &larr; <T k="detail.backToTeachers" />
-        </Link>
+    <div className="min-h-screen bg-bg-primary pb-32 md:pb-16">
+      {/* Top nav: back + share */}
+      <div className="mx-auto max-w-4xl px-5 pt-4 flex items-center justify-between">
+        <BackButton fallbackHref="/teachers" />
+        <TeacherShareButton
+          name={profile.display_name}
+          url={`/teachers/${t.user_id}`}
+        />
       </div>
 
       <div className="mx-auto max-w-4xl px-5 py-6 md:py-8">
-        {/* Hero section */}
-        <div className="flex flex-col md:flex-row gap-6 md:gap-8 mb-8">
-          {/* Avatar */}
-          <div className="flex-shrink-0">
-            {profile.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={profile.display_name}
-                className="w-28 h-28 md:w-36 md:h-36 rounded-2xl object-cover"
-              />
-            ) : (
-              <div
-                className={cn(
-                  "w-28 h-28 md:w-36 md:h-36 rounded-2xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-4xl md:text-5xl",
-                  avatarColors[initial.charCodeAt(0) % avatarColors.length]
+        {/* ── Hero: photo + video side by side ── */}
+        <div className="mb-8">
+          {hasVideo ? (
+            /* Layout with video: left=info, right=video */
+            <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+              {/* Left: avatar + info */}
+              <div className="md:w-1/2 flex flex-col gap-4">
+                <div className="flex items-start gap-4">
+                  {/* Avatar */}
+                  <div className="flex-shrink-0">
+                    {profile.avatar_url ? (
+                      <Image
+                        src={profile.avatar_url}
+                        alt={profile.display_name}
+                        width={96}
+                        height={96}
+                        className="w-20 h-20 md:w-24 md:h-24 rounded-2xl object-cover"
+                      />
+                    ) : (
+                      <div
+                        className={cn(
+                          "w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-3xl",
+                          avatarColors[colorIdx]
+                        )}
+                      >
+                        {initial}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Name + headline */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h1 className="text-xl md:text-2xl font-bold font-[family-name:var(--font-display)] text-text-primary">
+                        {profile.display_name}
+                      </h1>
+                      {/* Verified badge — all shown teachers are approved */}
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                        <BadgeCheck size={11} />
+                        Verified
+                      </span>
+                    </div>
+                    {t.headline && (
+                      <p className="mt-1 text-text-secondary text-xs md:text-sm line-clamp-2">
+                        {t.headline}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-1">
+                    <Star size={15} className="text-gold fill-gold" />
+                    <span className="text-sm font-semibold text-text-primary">
+                      {t.avg_rating.toFixed(1)}
+                    </span>
+                    <span className="text-xs text-text-muted">
+                      ({t.review_count} <T k="detail.reviews" />)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <BookOpen size={14} className="text-text-muted" />
+                    <span className="text-xs text-text-secondary">
+                      {t.total_lessons} <T k="detail.lessons" />
+                    </span>
+                  </div>
+                </div>
+
+                {/* Price */}
+                <div className="flex items-baseline gap-3 flex-wrap">
+                  <div className="bg-bg-secondary rounded-xl px-4 py-2 border border-border">
+                    <span className="text-xl font-bold text-text-primary">${t.hourly_rate}</span>
+                    <span className="text-xs text-text-muted ml-1">/15min</span>
+                  </div>
+                  {has30min && (
+                    <div className="bg-bg-secondary rounded-xl px-4 py-2 border border-border">
+                      <span className="text-xl font-bold text-text-primary">${t.hourly_rate * 2}</span>
+                      <span className="text-xs text-text-muted ml-1">/30min</span>
+                    </div>
+                  )}
+                  {t.trial_enabled && t.trial_price !== null && (
+                    <div className="bg-accent-subtle rounded-xl px-4 py-2 border border-accent/30">
+                      <span className="text-sm font-bold text-accent">Trial ${t.trial_price}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Book CTA (desktop, below price) */}
+                <a
+                  href="#available-slots"
+                  className="hidden md:inline-flex items-center justify-center py-3 px-6 rounded-xl text-sm font-semibold bg-accent hover:bg-accent-hover text-white transition-colors self-start"
+                >
+                  <T k="detail.bookLesson" />
+                </a>
+              </div>
+
+              {/* Right: intro video */}
+              <div className="md:w-1/2">
+                <IntroVideoPlayer
+                  src={t.intro_video_url!}
+                  youtubeId={youtubeId}
+                />
+              </div>
+            </div>
+          ) : (
+            /* No video: original layout */
+            <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+              <div className="flex-shrink-0">
+                {profile.avatar_url ? (
+                  <Image
+                    src={profile.avatar_url}
+                    alt={profile.display_name}
+                    width={144}
+                    height={144}
+                    className="w-28 h-28 md:w-36 md:h-36 rounded-2xl object-cover"
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      "w-28 h-28 md:w-36 md:h-36 rounded-2xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-4xl md:text-5xl",
+                      avatarColors[colorIdx]
+                    )}
+                  >
+                    {initial}
+                  </div>
                 )}
-              >
-                {initial}
               </div>
-            )}
-          </div>
 
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl md:text-3xl font-bold font-[family-name:var(--font-display)] text-text-primary">
-              {profile.display_name}
-            </h1>
-            {t.headline && (
-              <p className="mt-1 text-text-secondary text-sm md:text-base">
-                {t.headline}
-              </p>
-            )}
-
-            {/* Stats row */}
-            <div className="flex items-center gap-4 mt-3 flex-wrap">
-              <div className="flex items-center gap-1">
-                <Star size={16} className="text-gold fill-gold" />
-                <span className="text-sm font-medium text-text-primary">
-                  {t.avg_rating.toFixed(1)}
-                </span>
-                <span className="text-sm text-text-muted">
-                  ({t.review_count} <T k="detail.reviews" />)
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <BookOpen size={16} className="text-text-muted" />
-                <span className="text-sm text-text-secondary">
-                  {t.total_lessons} <T k="detail.lessons" />
-                </span>
-              </div>
-            </div>
-
-            {/* Pricing */}
-            <div className="mt-4 flex items-baseline gap-3 flex-wrap">
-              <div className="bg-bg-secondary rounded-xl px-4 py-2 border border-border">
-                <span className="text-xl font-bold text-text-primary">
-                  ${t.hourly_rate}
-                </span>
-                <span className="text-xs text-text-muted ml-1">/15min</span>
-              </div>
-              {t.lesson_duration_options.includes(30) && (
-                <div className="bg-bg-secondary rounded-xl px-4 py-2 border border-border">
-                  <span className="text-xl font-bold text-text-primary">
-                    ${t.hourly_rate * 2}
-                  </span>
-                  <span className="text-xs text-text-muted ml-1">/30min</span>
-                </div>
-              )}
-              {t.trial_enabled && t.trial_price !== null && (
-                <div className="bg-accent-subtle rounded-xl px-4 py-2 border border-accent/30">
-                  <span className="text-sm font-bold text-accent">
-                    Trial ${t.trial_price}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl md:text-3xl font-bold font-[family-name:var(--font-display)] text-text-primary">
+                    {profile.display_name}
+                  </h1>
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                    <BadgeCheck size={11} />
+                    Verified
                   </span>
                 </div>
-              )}
+                {t.headline && (
+                  <p className="mt-1 text-text-secondary text-sm md:text-base">{t.headline}</p>
+                )}
+                <div className="flex items-center gap-4 mt-3 flex-wrap">
+                  <div className="flex items-center gap-1">
+                    <Star size={16} className="text-gold fill-gold" />
+                    <span className="text-sm font-medium text-text-primary">
+                      {t.avg_rating.toFixed(1)}
+                    </span>
+                    <span className="text-sm text-text-muted">
+                      ({t.review_count} <T k="detail.reviews" />)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <BookOpen size={16} className="text-text-muted" />
+                    <span className="text-sm text-text-secondary">
+                      {t.total_lessons} <T k="detail.lessons" />
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline gap-3 flex-wrap">
+                  <div className="bg-bg-secondary rounded-xl px-4 py-2 border border-border">
+                    <span className="text-xl font-bold text-text-primary">${t.hourly_rate}</span>
+                    <span className="text-xs text-text-muted ml-1">/15min</span>
+                  </div>
+                  {has30min && (
+                    <div className="bg-bg-secondary rounded-xl px-4 py-2 border border-border">
+                      <span className="text-xl font-bold text-text-primary">${t.hourly_rate * 2}</span>
+                      <span className="text-xs text-text-muted ml-1">/30min</span>
+                    </div>
+                  )}
+                  {t.trial_enabled && t.trial_price !== null && (
+                    <div className="bg-accent-subtle rounded-xl px-4 py-2 border border-accent/30">
+                      <span className="text-sm font-bold text-accent">Trial ${t.trial_price}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Tags: categories, languages, levels — compact row */}
+        {/* Tags */}
         <div className="flex flex-wrap gap-2 mb-8">
           {t.categories.map((cat) => (
             <span
@@ -343,23 +475,8 @@ export default async function TeacherDetailPage({ params }: PageProps) {
         />
       </div>
 
-      {/* Floating CTA (mobile) */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-bg-primary/90 backdrop-blur-md border-t border-border md:hidden z-30">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <span className="text-lg font-bold text-text-primary">
-              ${t.hourly_rate}
-            </span>
-            <span className="text-xs text-text-muted"> /15min</span>
-          </div>
-          <a
-            href="#available-slots"
-            className="flex-1 max-w-[200px] py-3 rounded-xl text-sm font-semibold text-center bg-accent hover:bg-accent-hover text-white transition-colors"
-          >
-            <T k="detail.bookLesson" />
-          </a>
-        </div>
-      </div>
+      {/* Sticky CTA (scroll-triggered, mobile + desktop) */}
+      <TeacherStickyCTA hourlyRate={t.hourly_rate} has30min={has30min} />
     </div>
   );
 }

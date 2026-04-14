@@ -79,7 +79,13 @@ export default function LearnerSignupPage() {
       return;
     }
 
-    await assignLearnerRole();
+    try {
+      await assignLearnerRole();
+    } catch {
+      setError("Account created but profile setup failed. Please log in and try again.");
+      setLoading(false);
+      return;
+    }
     router.push("/teachers");
   };
 
@@ -172,11 +178,14 @@ export default function LearnerSignupPage() {
         {/* Email form */}
         <form onSubmit={handleEmailSignup} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5">
+            <label htmlFor="signup-display-name" className="block text-xs font-medium text-text-secondary mb-1.5">
               Display Name
             </label>
             <input
+              id="signup-display-name"
+              name="displayName"
               type="text"
+              autoComplete="name"
               placeholder="Your name"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
@@ -190,11 +199,14 @@ export default function LearnerSignupPage() {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5">
+            <label htmlFor="signup-email" className="block text-xs font-medium text-text-secondary mb-1.5">
               Email
             </label>
             <input
+              id="signup-email"
+              name="email"
               type="email"
+              autoComplete="email"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -208,16 +220,20 @@ export default function LearnerSignupPage() {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5">
+            <label htmlFor="signup-password" className="block text-xs font-medium text-text-secondary mb-1.5">
               Password
             </label>
             <input
+              id="signup-password"
+              name="password"
               type="password"
-              placeholder="8+ characters"
+              autoComplete="new-password"
+              placeholder="At least 8 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={8}
+              aria-describedby="signup-password-help"
               className={cn(
                 "w-full px-4 py-3 rounded-xl text-sm",
                 "bg-bg-primary border border-border text-text-primary placeholder:text-text-muted",
@@ -225,6 +241,9 @@ export default function LearnerSignupPage() {
                 "transition-all"
               )}
             />
+            <p id="signup-password-help" className="mt-1.5 text-[11px] text-text-muted">
+              Use at least 8 characters. Mix letters and numbers for a stronger password.
+            </p>
           </div>
 
           <button

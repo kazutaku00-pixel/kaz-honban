@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   CalendarDays,
   Clock,
@@ -173,9 +174,11 @@ export default async function TeacherDashboard() {
           </h2>
           <div className="flex items-center gap-4">
             {nextStudent.learner?.avatar_url ? (
-              <img
+              <Image
                 src={nextStudent.learner.avatar_url}
                 alt={nextStudent.learner.display_name}
+                width={56}
+                height={56}
                 className="w-14 h-14 rounded-xl object-cover"
               />
             ) : (

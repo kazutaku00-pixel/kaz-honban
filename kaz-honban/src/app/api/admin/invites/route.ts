@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdmin } from "@/lib/admin";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { sendTeacherInvite } from "@/lib/email";
 
 export async function GET() {
   try {
@@ -52,6 +53,11 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const inviteRow = data as unknown as { email: string | null; invite_code: string } | null;
+    if (inviteRow?.email) {
+      await sendTeacherInvite({ toEmail: inviteRow.email, inviteCode: inviteRow.invite_code });
     }
 
     return NextResponse.json({ invite: data }, { status: 201 });

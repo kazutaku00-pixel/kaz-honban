@@ -2,6 +2,7 @@ import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supab
 import { NextRequest, NextResponse } from "next/server";
 import { bookingSchema } from "@/lib/validations";
 import { notifyBookingCreated } from "@/lib/notifications";
+import { sendBookingConfirmation } from "@/lib/email";
 
 interface BookingResult {
   booking_id: string;
@@ -61,14 +62,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Notify teacher (non-blocking — booking is already persisted)
+    // Notify teacher + send confirmation emails (non-blocking — booking is already persisted)
     const { data: learnerProfile } = await supabase
       .from("profiles")
-      .select("display_name")
+      .select("display_name, email, timezone")
       .eq("id", user.id)
       .single();
-    const learnerName = (learnerProfile as unknown as { display_name: string } | null)?.display_name ?? "A student";
+    const learnerRow = learnerProfile as unknown as { display_name: string; email: string; timezone: string | null } | null;
+    const learnerName = learnerRow?.display_name ?? "A student";
     await notifyBookingCreated(supabase, teacher_id, learnerName, result.scheduled_start_at, result.booking_id);
+
+    const { data: teacherProfile } = await supabase
+      .from("profiles")
+      .select("display_name, email, timezone")
+      .eq("id", teacher_id)
+      .single();
+    const teacherRow = teacherProfile as unknown as { display_name: string; email: string; timezone: string | null } | null;
+
+    if (teacherRow?.email) {
+      await sendBookingConfirmation({
+        toEmail: teacherRow.email,
+        toName: teacherRow.display_name,
+        counterpartName: learnerName,
+        scheduledStartAt: result.scheduled_start_at,
+        durationMinutes: duration_minutes,
+        bookingId: result.booking_id,
+        timezone: teacherRow.timezone,
+        role: "teacher",
+      });
+    }
+    if (learnerRow?.email) {
+      await sendBookingConfirmation({
+        toEmail: learnerRow.email,
+        toName: learnerRow.display_name,
+        counterpartName: teacherRow?.display_name ?? "Your teacher",
+        scheduledStartAt: result.scheduled_start_at,
+        durationMinutes: duration_minutes,
+        bookingId: result.booking_id,
+        timezone: learnerRow.timezone,
+        role: "learner",
+      });
+    }
 
     return NextResponse.json(
       { booking: { id: result.booking_id, scheduled_start_at: result.scheduled_start_at, scheduled_end_at: result.scheduled_end_at } },

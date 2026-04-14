@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   ArrowLeft,
   Save,
@@ -251,9 +252,11 @@ export function TeacherProfileFormClient({
         <div className="flex items-center gap-3">
           <div className="relative">
             {avatarUrl ? (
-              <img
+              <Image
                 src={avatarUrl}
                 alt={displayName}
+                width={64}
+                height={64}
                 className="w-16 h-16 rounded-xl object-cover"
               />
             ) : (

@@ -72,5 +72,11 @@ ON CONFLICT (user_id) DO NOTHING;
 -- ===========================================
 SELECT u.email, r.role
 FROM auth.users u
-JOIN public.user_roles r ON r.user_id = u.id
+JOIN public.user_roles r 
+
+
+
+
+
+ r.user_id = u.id
 WHERE u.email IN ('kazumaimai0@gmail.com', 'nittonotakumi@gmail.com');

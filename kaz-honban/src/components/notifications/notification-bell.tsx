@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -25,10 +25,12 @@ export function NotificationBell() {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
+  const supabase = useMemo(() => createClient(), []);
+
   useEffect(() => {
     if (!user) return;
 
-    const supabase = createClient();
+    let cancelled = false;
 
     async function fetchNotifications() {
       setLoading(true);
@@ -38,8 +40,10 @@ export function NotificationBell() {
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false })
         .limit(20);
-      setNotifications((data ?? []) as unknown as Notification[]);
-      setLoading(false);
+      if (!cancelled) {
+        setNotifications((data ?? []) as unknown as Notification[]);
+        setLoading(false);
+      }
     }
 
     fetchNotifications();
@@ -65,9 +69,10 @@ export function NotificationBell() {
       .subscribe();
 
     return () => {
+      cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, supabase]);
 
   // Close on outside click
   useEffect(() => {
@@ -80,24 +85,48 @@ export function NotificationBell() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  async function markAsRead(id: string) {
-    const supabase = createClient();
-    await supabase
-      .from("notifications")
-      .update({ is_read: true } as never)
-      .eq("id", id);
+  const markAsRead = useCallback(async (id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
     );
-  }
+    try {
+      await supabase
+        .from("notifications")
+        .update({ is_read: true } as never)
+        .eq("id", id);
+    } catch {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, is_read: false } : n))
+      );
+    }
+  }, [supabase]);
 
-  function handleClick(n: Notification) {
+  const markAllAsRead = useCallback(async () => {
+    const unread = notifications.filter((n) => !n.is_read);
+    if (unread.length === 0) return;
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    try {
+      await supabase
+        .from("notifications")
+        .update({ is_read: true } as never)
+        .eq("user_id", user!.id)
+        .eq("is_read", false);
+    } catch {
+      setNotifications((prev) =>
+        prev.map((n) =>
+          unread.find((u) => u.id === n.id) ? { ...n, is_read: false } : n
+        )
+      );
+    }
+  }, [notifications, supabase, user]);
+
+  const handleClick = useCallback((n: Notification) => {
     if (!n.is_read) markAsRead(n.id);
     if (n.link) {
       window.location.href = n.link;
     }
     setOpen(false);
-  }
+  }, [markAsRead]);
 
   function timeAgo(iso: string) {
     const diff = Date.now() - new Date(iso).getTime();
@@ -126,10 +155,19 @@ export function NotificationBell() {
 
       {open && (
         <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto rounded-xl bg-bg-secondary border border-border shadow-2xl z-50">
-          <div className="px-4 py-3 border-b border-border">
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <h3 className="text-sm font-semibold text-text-primary">
               Notifications
             </h3>
+            {unreadCount > 0 && (
+              <button
+                type="button"
+                onClick={markAllAsRead}
+                className="text-[10px] text-accent hover:underline font-medium"
+              >
+                全て既読
+              </button>
+            )}
           </div>
 
           {loading ? (

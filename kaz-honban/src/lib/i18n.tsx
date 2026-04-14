@@ -252,6 +252,38 @@ const translations: Record<Locale, Record<string, string>> = {
     "profile.visibility": "Profile Visibility",
     "profile.visible": "Visible to students",
     "profile.hidden": "Hidden from search",
+
+    // Share
+    "share.label": "Share",
+    "share.copy": "Copy link",
+    "share.copied": "Copied!",
+    "share.instagram": "Copy for Instagram",
+    "share.message": "Check out {name}'s NihonGo profile!",
+
+    // Detail stats
+    "detail.stats": "Stats",
+    "detail.avgRating": "Avg rating",
+    "detail.reviewCount": "Reviews",
+    "detail.totalLessons": "Total lessons",
+
+    // Room
+    "room.loading": "Loading room…",
+    "room.readyToJoin": "Ready to join?",
+    "room.deviceCheck": "Device Check",
+    "room.cameraOn": "Camera On",
+    "room.cameraOff": "Camera Off",
+    "room.noCamera": "No Camera",
+    "room.micOn": "Mic On",
+    "room.micOff": "Mic Off",
+    "room.noMic": "No Mic",
+    "room.join": "Join Room",
+    "room.back": "Back to Bookings",
+    "room.tryAgain": "Try again",
+    "room.errorTitle": "Couldn't join the lesson room",
+    "room.live": "Live",
+    "room.chat": "Chat",
+    "room.leave": "Leave",
+    "room.closeChat": "Tap to close chat",
   },
   ja: {
     // App Shell
@@ -494,6 +526,38 @@ const translations: Record<Locale, Record<string, string>> = {
     "profile.visibility": "プロフィール公開設定",
     "profile.visible": "生徒に表示中",
     "profile.hidden": "検索から非表示",
+
+    // Share
+    "share.label": "シェア",
+    "share.copy": "URLをコピー",
+    "share.copied": "コピーしました！",
+    "share.instagram": "Instagram用にコピー",
+    "share.message": "{name}先生のNihonGoプロフィールをチェック！",
+
+    // Detail stats
+    "detail.stats": "実績",
+    "detail.avgRating": "平均評価",
+    "detail.reviewCount": "レビュー数",
+    "detail.totalLessons": "総レッスン数",
+
+    // Room
+    "room.loading": "ルームを読み込み中…",
+    "room.readyToJoin": "入室の準備はできましたか？",
+    "room.deviceCheck": "デバイス確認",
+    "room.cameraOn": "カメラON",
+    "room.cameraOff": "カメラOFF",
+    "room.noCamera": "カメラなし",
+    "room.micOn": "マイクON",
+    "room.micOff": "マイクOFF",
+    "room.noMic": "マイクなし",
+    "room.join": "入室する",
+    "room.back": "予約一覧に戻る",
+    "room.tryAgain": "再試行",
+    "room.errorTitle": "ルームに入れませんでした",
+    "room.live": "ライブ",
+    "room.chat": "チャット",
+    "room.leave": "退出",
+    "room.closeChat": "タップしてチャットを閉じる",
   },
 };
 

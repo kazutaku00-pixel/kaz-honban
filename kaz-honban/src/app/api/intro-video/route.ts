@@ -113,6 +113,18 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = createServiceRoleClient();
 
+    // Verify user is a teacher
+    const { data: role } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "teacher")
+      .single();
+
+    if (!role) {
+      return NextResponse.json({ error: "Teacher role required" }, { status: 403 });
+    }
+
     // Remove files from storage
     const { data: files } = await supabase.storage
       .from(BUCKET)

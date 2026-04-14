@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -77,11 +78,7 @@ export function TeacherBookingsClient({ bookings }: { bookings: BookingItem[] })
   async function handleJoin(bookingId: string) {
     setJoiningId(bookingId);
     try {
-      const res = await fetch(`/api/bookings/${bookingId}/join`, { method: "POST" });
-      const data = await res.json();
-      if (res.ok && data.url) {
-        window.open(`${data.url}?t=${data.token}`, "_blank");
-      }
+      router.push(`/room/${bookingId}`);
     } finally {
       setJoiningId(null);
     }
@@ -146,9 +143,11 @@ export function TeacherBookingsClient({ bookings }: { bookings: BookingItem[] })
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     {booking.learner_avatar ? (
-                      <img
+                      <Image
                         src={booking.learner_avatar}
                         alt={booking.learner_name}
+                        width={40}
+                        height={40}
                         className="w-10 h-10 rounded-full object-cover border border-border"
                       />
                     ) : (

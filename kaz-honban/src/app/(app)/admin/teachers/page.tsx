@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { TeacherActions } from "@/components/admin/teacher-actions";
@@ -117,9 +118,11 @@ export default async function AdminTeachersPage({
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   {profile?.avatar_url ? (
-                    <img
+                    <Image
                       src={profile.avatar_url}
                       alt={profile.display_name}
+                      width={48}
+                      height={48}
                       className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
                     />
                   ) : (
