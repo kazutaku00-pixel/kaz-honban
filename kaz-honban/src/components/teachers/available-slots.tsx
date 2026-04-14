@@ -9,6 +9,7 @@ import type { AvailabilitySlot } from "@/types/database";
 
 interface AvailableSlotsProps {
   teacherId: string;
+  teacherTimezone?: string | null;
 }
 
 const SLOT_RANGE_DAYS = 14;
@@ -71,7 +72,7 @@ function formatTimezoneShort(tz: string): string {
   }
 }
 
-export function AvailableSlots({ teacherId }: AvailableSlotsProps) {
+export function AvailableSlots({ teacherId, teacherTimezone }: AvailableSlotsProps) {
   const router = useRouter();
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,6 +80,7 @@ export function AvailableSlots({ teacherId }: AvailableSlotsProps) {
   const [duration, setDuration] = useState<number>(15);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
   const userTz = useMemo(() => getUserTimezone(), []);
+  const showDualTimezone = !!teacherTimezone && teacherTimezone !== userTz;
 
   const allDays = useMemo(() => getNextDays(), []);
 
@@ -265,13 +267,24 @@ export function AvailableSlots({ teacherId }: AvailableSlotsProps) {
                             key={slot.id}
                             type="button"
                             onClick={() => handleSlotClick(slot)}
+                            title={
+                              showDualTimezone
+                                ? `Teacher's time: ${formatTime(slot.start_at, teacherTimezone!)} ${formatTimezoneShort(teacherTimezone!)}`
+                                : undefined
+                            }
                             className={cn(
                               "w-full py-2 px-1 rounded-lg text-xs font-medium transition-all",
                               "bg-bg-tertiary text-text-secondary border border-border",
-                              "hover:border-accent/50 hover:text-accent hover:bg-accent-subtle"
+                              "hover:border-accent/50 hover:text-accent hover:bg-accent-subtle",
+                              showDualTimezone && "leading-tight"
                             )}
                           >
-                            {formatTime(slot.start_at, userTz)}
+                            <div>{formatTime(slot.start_at, userTz)}</div>
+                            {showDualTimezone && (
+                              <div className="text-[9px] text-text-muted font-normal mt-0.5">
+                                {formatTime(slot.start_at, teacherTimezone!)} {formatTimezoneShort(teacherTimezone!)}
+                              </div>
+                            )}
                           </button>
                         ))}
                         {!isExpanded && hiddenCount > 0 && (
