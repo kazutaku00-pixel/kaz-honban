@@ -14,6 +14,8 @@ import {
   TrendingUp,
   AlertCircle,
   GraduationCap,
+  CheckCircle2,
+  Circle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { T } from "@/components/i18n-text";
@@ -52,6 +54,7 @@ export default async function TeacherDashboard() {
     { data: todayBookingsRaw },
     { count: monthlyLessons },
     { data: completedBookingsRaw },
+    { count: templateCount },
   ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).single(),
     supabase.from("teacher_profiles").select("*").eq("user_id", user.id).single(),
@@ -76,6 +79,11 @@ export default async function TeacherDashboard() {
       .eq("status", "completed")
       .order("scheduled_start_at", { ascending: false })
       .limit(10),
+    supabase
+      .from("schedule_templates")
+      .select("id", { count: "exact", head: true })
+      .eq("teacher_id", user.id)
+      .eq("is_active", true),
   ]);
 
   const profile = profileRaw as unknown as Profile | null;
@@ -99,6 +107,26 @@ export default async function TeacherDashboard() {
     day: "numeric",
   });
 
+  // Onboarding checklist — only shown when approval is draft/submitted/rejected
+  const showOnboarding = !teacherProfile || teacherProfile.approval_status !== "approved";
+  const checklist = [
+    { done: !!profile?.avatar_url, label: "Profile photo", href: "/teacher/profile" },
+    { done: !!teacherProfile?.headline && teacherProfile.headline.length >= 10, label: "Headline", href: "/teacher/profile" },
+    { done: !!teacherProfile?.bio && teacherProfile.bio.length >= 200, label: "Bio (200+ characters)", href: "/teacher/profile" },
+    { done: !!teacherProfile?.categories && teacherProfile.categories.length > 0, label: "Pick categories", href: "/teacher/profile" },
+    { done: (templateCount ?? 0) > 0, label: "Set weekly schedule", href: "/teacher/schedule" },
+    { done: !!teacherProfile?.intro_video_url, label: "Intro video (recommended)", href: "/teacher/profile" },
+  ];
+  const completed = checklist.filter((c) => c.done).length;
+  const progress = Math.round((completed / checklist.length) * 100);
+  const approvalBadge = (() => {
+    const s = teacherProfile?.approval_status;
+    if (s === "submitted") return { label: "Under review", color: "bg-blue-500/20 text-blue-300" };
+    if (s === "rejected") return { label: "Needs changes", color: "bg-red-500/20 text-red-300" };
+    if (s === "approved") return { label: "Approved", color: "bg-emerald-500/20 text-emerald-300" };
+    return { label: "Draft", color: "bg-white/5 text-text-muted" };
+  })();
+
   function isJoinable(startAt: string) {
     const diff = new Date(startAt).getTime() - Date.now();
     return diff <= 15 * 60 * 1000;
@@ -120,6 +148,58 @@ export default async function TeacherDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Onboarding checklist — hidden once approved */}
+      {showOnboarding && (
+        <div className="bg-bg-secondary rounded-2xl border border-gold/20 p-5 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-text-primary">Get your profile approved</h2>
+              <p className="text-xs text-text-muted mt-0.5">
+                Complete these steps to appear in student search results
+              </p>
+            </div>
+            <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0", approvalBadge.color)}>
+              {approvalBadge.label}
+            </span>
+          </div>
+
+          {/* Progress bar */}
+          <div>
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="text-text-muted">{completed} of {checklist.length} complete</span>
+              <span className="text-gold font-semibold">{progress}%</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-gold to-amber-400 transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Checklist items */}
+          <div className="space-y-1">
+            {checklist.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-2.5 py-2 px-2 -mx-2 rounded-lg transition-colors",
+                  item.done ? "text-text-muted" : "text-text-primary hover:bg-white/5"
+                )}
+              >
+                {item.done ? (
+                  <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                ) : (
+                  <Circle size={16} className="text-text-muted shrink-0" />
+                )}
+                <span className={cn("text-sm", item.done && "line-through")}>{item.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">

@@ -13,10 +13,15 @@ import {
   User,
   BookOpen,
   Loader2,
+  ChevronDown,
+  Target,
+  Sparkles,
+  MessageSquare,
+  Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
-import type { BookingStatus } from "@/types/database";
+import type { BookingStatus, JapaneseLevel } from "@/types/database";
 
 const STATUS_STYLES: Record<BookingStatus, string> = {
   confirmed: "bg-blue-500/20 text-blue-400 border-blue-500/30",
@@ -38,6 +43,11 @@ interface BookingItem {
   id: string;
   learner_name: string;
   learner_avatar: string | null;
+  learner_level: JapaneseLevel | null;
+  learner_goals: string | null;
+  learner_interests: string[] | null;
+  learner_native_lang: string | null;
+  learner_note: string | null;
   scheduled_start_at: string;
   scheduled_end_at: string;
   duration_minutes: number;
@@ -45,11 +55,21 @@ interface BookingItem {
   has_report: boolean;
 }
 
+const LEVEL_LABEL: Record<JapaneseLevel, string> = {
+  none: "Beginner",
+  n5: "N5",
+  n4: "N4",
+  n3: "N3",
+  n2: "N2",
+  n1: "N1",
+};
+
 export function TeacherBookingsClient({ bookings }: { bookings: BookingItem[] }) {
   const router = useRouter();
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
   const [joiningId, setJoiningId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const now = new Date();
 
@@ -184,6 +204,73 @@ export function TeacherBookingsClient({ bookings }: { bookings: BookingItem[] })
                   </span>
                   <span>{booking.duration_minutes} min</span>
                 </div>
+
+                {/* Learner pre-lesson info */}
+                {activeTab === "upcoming" && (booking.learner_level || booking.learner_goals || booking.learner_interests?.length || booking.learner_note) && (() => {
+                  const isOpen = expandedId === booking.id;
+                  return (
+                    <div className="pt-2 border-t border-border">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedId(isOpen ? null : booking.id)}
+                        className="w-full flex items-center justify-between gap-2 text-xs text-text-secondary hover:text-text-primary transition py-1"
+                      >
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <User size={12} />
+                          Student info
+                          {booking.learner_level && (
+                            <span className="ml-1.5 px-1.5 py-0.5 rounded bg-accent-subtle text-accent text-[10px] font-semibold">
+                              {LEVEL_LABEL[booking.learner_level]}
+                            </span>
+                          )}
+                        </span>
+                        <ChevronDown size={14} className={cn("transition-transform", isOpen && "rotate-180")} />
+                      </button>
+                      {isOpen && (
+                        <div className="mt-2 space-y-2 text-xs">
+                          {booking.learner_goals && (
+                            <div className="flex gap-2">
+                              <Target size={12} className="text-accent shrink-0 mt-0.5" />
+                              <div>
+                                <p className="font-medium text-text-secondary">Goals</p>
+                                <p className="text-text-muted whitespace-pre-line">{booking.learner_goals}</p>
+                              </div>
+                            </div>
+                          )}
+                          {booking.learner_interests && booking.learner_interests.length > 0 && (
+                            <div className="flex gap-2">
+                              <Sparkles size={12} className="text-gold shrink-0 mt-0.5" />
+                              <div className="flex flex-wrap gap-1">
+                                {booking.learner_interests.map((i) => (
+                                  <span key={i} className="px-1.5 py-0.5 rounded bg-white/5 text-text-secondary text-[10px]">
+                                    {i}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {booking.learner_native_lang && (
+                            <div className="flex gap-2">
+                              <Globe size={12} className="text-emerald-400 shrink-0 mt-0.5" />
+                              <p className="text-text-muted">
+                                Native: <span className="text-text-secondary uppercase">{booking.learner_native_lang}</span>
+                              </p>
+                            </div>
+                          )}
+                          {booking.learner_note && (
+                            <div className="flex gap-2">
+                              <MessageSquare size={12} className="text-sky-400 shrink-0 mt-0.5" />
+                              <div>
+                                <p className="font-medium text-text-secondary">Note from student</p>
+                                <p className="text-text-muted whitespace-pre-line">{booking.learner_note}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-1">
