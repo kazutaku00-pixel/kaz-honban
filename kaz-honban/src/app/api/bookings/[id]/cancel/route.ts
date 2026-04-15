@@ -76,8 +76,10 @@ export async function PATCH(
       }
     }
 
-    // Update booking
-    const { error: updateError } = await supabase
+    // Guard against stale reads: only flip confirmed/in_session → cancelled.
+    // If somebody else (teacher, admin cron) already transitioned the row,
+    // this update matches 0 rows and we bail out instead of double-releasing slots.
+    const { data: updatedRows, error: updateError } = await supabase
       .from("bookings")
       .update({
         status: "cancelled",
@@ -85,12 +87,21 @@ export async function PATCH(
         cancelled_by: user.id,
         cancellation_reason: cancellationReason,
       } as never)
-      .eq("id", bookingId);
+      .eq("id", bookingId)
+      .in("status", ["confirmed", "in_session"])
+      .select("id");
 
     if (updateError) {
       return NextResponse.json(
         { error: "Failed to cancel booking" },
         { status: 500 }
+      );
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      return NextResponse.json(
+        { error: "Booking was already updated by someone else" },
+        { status: 409 }
       );
     }
 

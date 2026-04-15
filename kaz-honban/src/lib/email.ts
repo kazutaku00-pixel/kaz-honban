@@ -1,6 +1,17 @@
 // Lightweight Resend integration. No SDK — single fetch.
 // Silently skips when RESEND_API_KEY is unset (dev-friendly).
 
+// Display names come from user-controlled profile fields. Escape before
+// inlining into HTML bodies so a malicious name can't inject markup.
+function esc(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 type SendEmailParams = {
   to: string;
   subject: string;
@@ -85,21 +96,27 @@ export async function sendBookingConfirmation(params: {
   const when = formatLessonTime(scheduledStartAt, timezone);
   const link = role === "teacher" ? `${appUrl}/teacher/bookings` : `${appUrl}/bookings`;
 
+  const toNameSafe = esc(toName);
+  const counterpartSafe = esc(counterpartName);
+
   const intro =
     role === "teacher"
-      ? `<p>Hi ${toName},</p><p>You have a new lesson booking with <strong>${counterpartName}</strong>.</p>`
-      : `<p>Hi ${toName},</p><p>Your lesson with <strong>${counterpartName}</strong> is confirmed.</p>`;
+      ? `<p>Hi ${toNameSafe},</p><p>You have a new lesson booking with <strong>${counterpartSafe}</strong>.</p>`
+      : `<p>Hi ${toNameSafe},</p><p>Your lesson with <strong>${counterpartSafe}</strong> is confirmed.</p>`;
 
   const body = `${intro}
     <ul style="line-height:1.8">
-      <li><strong>When:</strong> ${when}</li>
+      <li><strong>When:</strong> ${esc(when)}</li>
       <li><strong>Duration:</strong> ${durationMinutes} minutes</li>
     </ul>
     <p>We'll email you again a few hours before the lesson with the join link.</p>`;
 
   return sendEmail({
     to: toEmail,
-    subject: role === "teacher" ? `New booking with ${counterpartName}` : `Lesson confirmed with ${counterpartName}`,
+    subject:
+      role === "teacher"
+        ? `New booking with ${counterpartName}`
+        : `Lesson confirmed with ${counterpartName}`,
     html: baseLayout(body, "View booking", link),
   });
 }
@@ -118,8 +135,8 @@ export async function sendLessonReminder(params: {
   const when = formatLessonTime(scheduledStartAt, timezone);
   const link = `${appUrl}/room/${bookingId}`;
 
-  const body = `<p>Hi ${toName},</p>
-    <p>Reminder: you have a lesson with <strong>${counterpartName}</strong> at <strong>${when}</strong>.</p>
+  const body = `<p>Hi ${esc(toName)},</p>
+    <p>Reminder: you have a lesson with <strong>${esc(counterpartName)}</strong> at <strong>${esc(when)}</strong>.</p>
     <p>Please arrive a few minutes early to check your camera and microphone.</p>`;
 
   return sendEmail({
@@ -137,7 +154,7 @@ export async function sendTeacherInvite(params: {
   const link = `${appUrl}/signup?role=teacher&invite=${params.inviteCode}`;
   const body = `<p>You've been invited to teach on NihonGo.</p>
     <p>Click the button below to create your teacher profile. This invite expires in 30 days.</p>
-    <p style="color:#6b7280;font-size:13px">Invite code: <code>${params.inviteCode}</code></p>`;
+    <p style="color:#6b7280;font-size:13px">Invite code: <code>${esc(params.inviteCode)}</code></p>`;
   return sendEmail({
     to: params.toEmail,
     subject: "You're invited to teach on NihonGo",

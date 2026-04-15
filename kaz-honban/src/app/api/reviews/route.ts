@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { booking_id, rating, comment } = parsed.data;
+    const { booking_id, rating, comment, tags } = parsed.data;
 
     // Use service role for DB operations (learner can't update teacher_profiles via RLS)
     const supabase = createServiceRoleClient();
@@ -49,10 +49,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify booking is completed
-    if (booking.status !== "completed") {
+    // Allow reviews once the lesson's scheduled end has passed. This avoids a
+    // dead-zone between end_at and the `complete-lessons` cron tick where the
+    // learner is looking at a "Leave review" button but the status still says
+    // in_session / confirmed.
+    const endPassed =
+      new Date(booking.scheduled_end_at).getTime() <= Date.now();
+    if (
+      booking.status !== "completed" &&
+      !(booking.status === "in_session" && endPassed) &&
+      !(booking.status === "confirmed" && endPassed)
+    ) {
       return NextResponse.json(
-        { error: "Can only review completed bookings" },
+        { error: "Can only review lessons after they have ended" },
         { status: 400 }
       );
     }
@@ -81,6 +90,7 @@ export async function POST(request: NextRequest) {
         reviewee_id: booking.teacher_id,
         rating,
         comment: comment ?? null,
+        tags: tags ?? [],
       } as never)
       .select()
       .single();

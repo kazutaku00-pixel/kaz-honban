@@ -1,6 +1,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { createNotification } from "@/lib/notifications";
+import { verifyCronRequest } from "@/lib/cron";
 
 interface BookingWithRoom {
   id: string;
@@ -13,16 +14,8 @@ interface BookingWithRoom {
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify cron secret in production
-    const cronSecret = process.env.CRON_SECRET;
-    if (!cronSecret) {
-      console.error("CRON_SECRET not configured");
-      return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-    }
-    const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const unauthorized = verifyCronRequest(request);
+    if (unauthorized) return unauthorized;
 
     const supabase = createServiceRoleClient();
 

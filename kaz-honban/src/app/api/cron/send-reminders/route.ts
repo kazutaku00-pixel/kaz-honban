@@ -1,17 +1,12 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { sendLessonReminder } from "@/lib/email";
+import { verifyCronRequest } from "@/lib/cron";
 
 export async function GET(request: NextRequest) {
   try {
-    const cronSecret = process.env.CRON_SECRET;
-    if (!cronSecret) {
-      return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-    }
-    const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const unauthorized = verifyCronRequest(request);
+    if (unauthorized) return unauthorized;
 
     const supabase = createServiceRoleClient();
     const now = new Date();
@@ -44,37 +39,52 @@ export async function GET(request: NextRequest) {
     }>;
 
     let sent = 0;
+    let failed = 0;
     for (const b of rows) {
       if (!b.learner || !b.teacher) continue;
 
-      await sendLessonReminder({
-        toEmail: b.learner.email,
-        toName: b.learner.display_name,
-        counterpartName: b.teacher.display_name,
-        scheduledStartAt: b.scheduled_start_at,
-        bookingId: b.id,
-        timezone: b.learner.timezone,
-        role: "learner",
-      });
-      await sendLessonReminder({
-        toEmail: b.teacher.email,
-        toName: b.teacher.display_name,
-        counterpartName: b.learner.display_name,
-        scheduledStartAt: b.scheduled_start_at,
-        bookingId: b.id,
-        timezone: b.teacher.timezone,
-        role: "teacher",
-      });
+      const learnerOk = b.learner.email
+        ? await sendLessonReminder({
+            toEmail: b.learner.email,
+            toName: b.learner.display_name,
+            counterpartName: b.teacher.display_name,
+            scheduledStartAt: b.scheduled_start_at,
+            bookingId: b.id,
+            timezone: b.learner.timezone,
+            role: "learner",
+          })
+        : false;
+      const teacherOk = b.teacher.email
+        ? await sendLessonReminder({
+            toEmail: b.teacher.email,
+            toName: b.teacher.display_name,
+            counterpartName: b.learner.display_name,
+            scheduledStartAt: b.scheduled_start_at,
+            bookingId: b.id,
+            timezone: b.teacher.timezone,
+            role: "teacher",
+          })
+        : false;
 
-      await supabase
-        .from("bookings")
-        .update({ reminder_sent_at: new Date().toISOString() } as never)
-        .eq("id", b.id);
-
-      sent += 1;
+      // Only mark as sent when at least one recipient received the email,
+      // so transient Resend failures get retried on the next cron tick.
+      if (learnerOk || teacherOk) {
+        const { error: updErr } = await supabase
+          .from("bookings")
+          .update({ reminder_sent_at: new Date().toISOString() } as never)
+          .eq("id", b.id);
+        if (updErr) {
+          console.error("send-reminders reminder_sent_at update failed:", b.id, updErr);
+          failed += 1;
+          continue;
+        }
+        sent += 1;
+      } else {
+        failed += 1;
+      }
     }
 
-    return NextResponse.json({ success: true, sent_count: sent });
+    return NextResponse.json({ success: true, sent_count: sent, failed_count: failed });
   } catch (err) {
     console.error("GET /api/cron/send-reminders error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

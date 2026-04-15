@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyAdmin } from "@/lib/admin";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { notifyBookingCancelled } from "@/lib/notifications";
 
 // GET — List all users with roles
 export async function GET() {
@@ -146,7 +147,47 @@ export async function POST(request: Request) {
       .update({ approval_status: "suspended", is_public: false } as never)
       .eq("user_id", userId);
 
-    return NextResponse.json({ success: true });
+    // Cancel every upcoming/in-progress booking this teacher has so learners
+    // aren't stranded with a teacher who can no longer operate.
+    const { data: activeRaw } = await admin
+      .from("bookings")
+      .select("id, learner_id, scheduled_start_at")
+      .eq("teacher_id", userId)
+      .in("status", ["confirmed", "in_session"]);
+
+    const activeBookings =
+      (activeRaw ?? []) as unknown as Array<{
+        id: string;
+        learner_id: string;
+        scheduled_start_at: string;
+      }>;
+
+    if (activeBookings.length > 0) {
+      const ids = activeBookings.map((b) => b.id);
+      const nowIso = new Date().toISOString();
+      await admin
+        .from("bookings")
+        .update({
+          status: "cancelled",
+          cancelled_at: nowIso,
+          cancelled_by: result.userId,
+          cancellation_reason: "Teacher suspended by admin",
+        } as never)
+        .in("id", ids);
+
+      for (const b of activeBookings) {
+        await (admin.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<unknown>)(
+          "release_booking_slots",
+          { p_booking_id: b.id }
+        );
+        await notifyBookingCancelled(admin, b.learner_id, "Your teacher", b.scheduled_start_at);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      cancelled_bookings: activeBookings.length,
+    });
   }
 
   // Reactivate teacher
@@ -187,13 +228,45 @@ export async function PUT(request: Request) {
 
   const admin = createServiceRoleClient();
 
+  // Fetch current state so we can decide whether to release slots.
+  const { data: currentRaw, error: fetchError } = await admin
+    .from("bookings")
+    .select("id, status")
+    .eq("id", bookingId)
+    .single();
+
+  if (fetchError || !currentRaw) {
+    return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+  }
+
+  const current = currentRaw as unknown as { id: string; status: string };
+  if (current.status === status) {
+    return NextResponse.json({ success: true, noop: true });
+  }
+
+  const updatePayload: Record<string, unknown> = { status };
+  if (status === "cancelled") {
+    updatePayload.cancelled_at = new Date().toISOString();
+    updatePayload.cancelled_by = result.userId;
+    updatePayload.cancellation_reason = "Changed by admin";
+  }
+
   const { error } = await admin
     .from("bookings")
-    .update({ status } as never)
+    .update(updatePayload as never)
     .eq("id", bookingId);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // When moving into a terminal non-completion state, free the slots so the
+  // teacher's calendar doesn't stay blocked by an admin override.
+  if (status === "cancelled" || status === "no_show") {
+    await (admin.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<unknown>)(
+      "release_booking_slots",
+      { p_booking_id: bookingId }
+    );
   }
 
   return NextResponse.json({ success: true });

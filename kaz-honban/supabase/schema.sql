@@ -162,11 +162,13 @@ CREATE TABLE IF NOT EXISTS reviews (
   reviewee_id UUID NOT NULL REFERENCES profiles(id),
   rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
   comment TEXT,
+  tags TEXT[] NOT NULL DEFAULT '{}',
   status review_status NOT NULL DEFAULT 'published',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_reviews_teacher ON reviews(reviewee_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reviews_tags ON reviews USING GIN (tags);
 
 CREATE TABLE IF NOT EXISTS lesson_reports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -17,7 +17,10 @@ export const teacherProfileSchema = z.object({
   categories: z.array(z.string()).min(1, "Select at least one category"),
   languages: z.array(z.string()).min(1, "Select at least one language"),
   levels: z.array(z.string()).min(1, "Select at least one level"),
-  lesson_duration_options: z.array(z.number().refine((n) => n === 30)).default([30]),
+  lesson_duration_options: z
+    .array(z.number().refine((n) => n === 30))
+    .min(1, "At least one duration required")
+    .default([30]),
   teaching_style: z.string().optional(),
   certifications: z.string().optional(),
   intro_video_url: z.string().url().optional().or(z.literal("")),
@@ -39,10 +42,28 @@ export const bookingSchema = z.object({
   learner_note: z.string().max(500).optional(),
 });
 
+export const REVIEW_TAGS = [
+  { value: "patient", label: "Patient" },
+  { value: "encouraging", label: "Encouraging" },
+  { value: "well_prepared", label: "Well-prepared" },
+  { value: "clear_explanation", label: "Clear explanations" },
+  { value: "great_pronunciation", label: "Great pronunciation" },
+  { value: "natural_conversation", label: "Natural conversation" },
+  { value: "homework_useful", label: "Useful homework" },
+  { value: "on_time", label: "Always on time" },
+  { value: "good_for_beginners", label: "Good for beginners" },
+  { value: "jlpt_focused", label: "JLPT focused" },
+  { value: "business_japanese", label: "Business Japanese" },
+  { value: "fun", label: "Fun lessons" },
+] as const;
+
+export const REVIEW_TAG_VALUES = REVIEW_TAGS.map((t) => t.value) as unknown as [string, ...string[]];
+
 export const reviewSchema = z.object({
   booking_id: z.string().uuid(),
   rating: z.number().min(1).max(5),
   comment: z.string().max(1000).optional(),
+  tags: z.array(z.enum(REVIEW_TAG_VALUES)).max(6).optional(),
 });
 
 export const lessonReportSchema = z.object({

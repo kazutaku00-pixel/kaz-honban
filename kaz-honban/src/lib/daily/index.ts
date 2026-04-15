@@ -8,39 +8,72 @@ function getDailyApiKey(): string {
   return key;
 }
 
+function roomNameFor(bookingId: string): string {
+  return `nihongo-${bookingId.slice(0, 8)}`;
+}
+
+async function getDailyRoom(name: string): Promise<{ name: string; url: string } | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch(`${DAILY_API_URL}/rooms/${encodeURIComponent(name)}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${getDailyApiKey()}`,
+      },
+      signal: controller.signal,
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) {
+      const error = await res.text();
+      throw new Error(`Failed to fetch Daily room: ${error}`);
+    }
+    return (await res.json()) as { name: string; url: string };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function createDailyRoom(bookingId: string, expiresAt: Date) {
+  const name = roomNameFor(bookingId);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
 
   try {
-  const res = await fetch(`${DAILY_API_URL}/rooms`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getDailyApiKey()}`,
-    },
-    signal: controller.signal,
-    body: JSON.stringify({
-      name: `nihongo-${bookingId.slice(0, 8)}`,
-      privacy: "private",
-      properties: {
-        exp: Math.floor(expiresAt.getTime() / 1000),
-        enable_chat: true,
-        enable_screenshare: false,
-        max_participants: 2,
-        enable_knocking: false,
-        start_audio_off: false,
-        start_video_off: false,
+    const res = await fetch(`${DAILY_API_URL}/rooms`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getDailyApiKey()}`,
       },
-    }),
-  });
+      signal: controller.signal,
+      body: JSON.stringify({
+        name,
+        privacy: "private",
+        properties: {
+          exp: Math.floor(expiresAt.getTime() / 1000),
+          enable_chat: true,
+          enable_screenshare: false,
+          max_participants: 2,
+          enable_knocking: false,
+          start_audio_off: false,
+          start_video_off: false,
+        },
+      }),
+    });
 
-  if (!res.ok) {
-    const error = await res.text();
-    throw new Error(`Failed to create Daily room: ${error}`);
-  }
+    if (res.ok) {
+      return (await res.json()) as { name: string; url: string };
+    }
 
-  return res.json() as Promise<{ name: string; url: string }>;
+    // Idempotency: if the room already exists on Daily's side (e.g. DB write
+    // failed on a previous attempt), reuse it instead of erroring.
+    const errorText = await res.text();
+    if (res.status === 409 || /already.*(exist|taken)/i.test(errorText)) {
+      const existing = await getDailyRoom(name);
+      if (existing) return existing;
+    }
+    throw new Error(`Failed to create Daily room: ${errorText}`);
   } finally {
     clearTimeout(timeout);
   }

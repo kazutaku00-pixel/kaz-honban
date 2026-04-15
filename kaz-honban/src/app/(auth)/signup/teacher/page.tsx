@@ -55,16 +55,25 @@ function TeacherSignupContent() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    await supabase.from("user_roles").insert({ user_id: user.id, role: "teacher" } as never);
-    await supabase.from("teacher_profiles").insert({ user_id: user.id } as never);
-
     if (inviteCode) {
-      await supabase
+      // Claim the invite first, rejecting the signup if another user already
+      // used it. Without this guard, two concurrent signups could both land a
+      // teacher role even though only the first actually owns the invite.
+      const { data: claimed, error: claimErr } = await supabase
         .from("teacher_invites")
         .update({ used_by: user.id, used_at: new Date().toISOString() } as never)
         .eq("invite_code", inviteCode)
-        .is("used_by", null);
+        .is("used_by", null)
+        .select("id");
+
+      if (claimErr || !claimed || claimed.length === 0) {
+        setError("This invite code has already been used.");
+        return;
+      }
     }
+
+    await supabase.from("user_roles").insert({ user_id: user.id, role: "teacher" } as never);
+    await supabase.from("teacher_profiles").insert({ user_id: user.id } as never);
   };
 
   const handleGoogleSignup = async () => {

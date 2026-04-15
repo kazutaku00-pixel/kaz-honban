@@ -144,6 +144,7 @@ export interface Review {
   reviewee_id: string;
   rating: number;
   comment: string | null;
+  tags: string[];
   status: ReviewStatus;
   created_at: string;
   updated_at: string;

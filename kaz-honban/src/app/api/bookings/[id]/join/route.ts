@@ -39,7 +39,7 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Check status
+    // Check status — completed / cancelled / no_show bookings are not joinable.
     if (booking.status !== "confirmed" && booking.status !== "in_session") {
       return NextResponse.json(
         { error: "Booking is not in a joinable state" },
@@ -47,17 +47,19 @@ export async function POST(
       );
     }
 
-    // Time gate: allow join from 15 min before start until 2 hours after end
+    // Time gate: allow join from 15 min before start until 30 min after end.
+    // A 2h tail was too long — the lesson is effectively over at end + a short grace.
     const now = Date.now();
     const startMs = new Date(booking.scheduled_start_at).getTime();
     const endMs = new Date(booking.scheduled_end_at).getTime();
+    const JOIN_GRACE_AFTER_END_MS = 30 * 60 * 1000;
     if (now < startMs - 15 * 60 * 1000) {
       return NextResponse.json(
         { error: "The room opens 15 minutes before the lesson start time." },
         { status: 403 }
       );
     }
-    if (now > endMs + 2 * 60 * 60 * 1000) {
+    if (now > endMs + JOIN_GRACE_AFTER_END_MS) {
       return NextResponse.json(
         { error: "The room window for this lesson has closed." },
         { status: 403 }
@@ -74,10 +76,8 @@ export async function POST(
     const profile = profileRaw as unknown as Pick<Profile, "display_name"> | null;
     const userName = profile?.display_name ?? "Participant";
 
-    // Room expires 2 hours after scheduled end (buffer for late starts)
-    const roomExpiry = new Date(
-      new Date(booking.scheduled_end_at).getTime() + 2 * 60 * 60 * 1000
-    );
+    // Daily room expiry aligns with the join window (end + 30 min grace).
+    const roomExpiry = new Date(endMs + JOIN_GRACE_AFTER_END_MS);
 
     // Check if room already exists
     const { data: existingRoomRaw } = await supabase
