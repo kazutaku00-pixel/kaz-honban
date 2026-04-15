@@ -5,10 +5,10 @@ import { T } from "@/components/i18n-text";
 
 interface TeacherStickyCTAProps {
   hourlyRate: number;
-  has30min: boolean;
 }
 
-export function TeacherStickyCTA({ hourlyRate, has30min }: TeacherStickyCTAProps) {
+export function TeacherStickyCTA({ hourlyRate }: TeacherStickyCTAProps) {
+  const lessonPrice = hourlyRate / 2;
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -21,16 +21,16 @@ export function TeacherStickyCTA({ hourlyRate, has30min }: TeacherStickyCTAProps
 
   return (
     <>
-      {/* Mobile: fixed bottom bar */}
+      {/* Mobile: fixed bottom bar — sits above the bottom tab nav (h-16) */}
       <div
-        className={`fixed bottom-0 left-0 right-0 p-4 bg-bg-primary/90 backdrop-blur-md border-t border-border md:hidden z-30 transition-transform duration-300 ${
+        className={`fixed bottom-16 left-0 right-0 p-4 bg-bg-primary/95 backdrop-blur-md border-t border-border md:hidden z-30 transition-transform duration-300 ${
           visible ? "translate-y-0" : "translate-y-full"
         }`}
       >
         <div className="flex items-center justify-between gap-3">
           <div>
-            <span className="text-lg font-bold text-text-primary">${hourlyRate}</span>
-            <span className="text-xs text-text-muted"> /15min</span>
+            <span className="text-lg font-bold text-text-primary">${lessonPrice}</span>
+            <span className="text-xs text-text-muted"> /30min</span>
           </div>
           <a
             href="#available-slots"
@@ -50,15 +50,9 @@ export function TeacherStickyCTA({ hourlyRate, has30min }: TeacherStickyCTAProps
         <div className="bg-bg-secondary border border-border rounded-2xl p-4 shadow-xl w-48">
           <div className="mb-3">
             <div className="flex items-baseline gap-1">
-              <span className="text-xl font-bold text-text-primary">${hourlyRate}</span>
-              <span className="text-xs text-text-muted">/15min</span>
+              <span className="text-xl font-bold text-text-primary">${lessonPrice}</span>
+              <span className="text-xs text-text-muted">/30min</span>
             </div>
-            {has30min && (
-              <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-sm font-semibold text-text-secondary">${hourlyRate * 2}</span>
-                <span className="text-xs text-text-muted">/30min</span>
-              </div>
-            )}
           </div>
           <a
             href="#available-slots"

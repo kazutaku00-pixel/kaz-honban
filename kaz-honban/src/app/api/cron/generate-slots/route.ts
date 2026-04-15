@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await (supabase.rpc as any)("generate_slots_from_templates", {
       p_days_ahead: 14,
-      p_slot_minutes: 15,
+      p_slot_minutes: 30,
     });
 
     if (error) {

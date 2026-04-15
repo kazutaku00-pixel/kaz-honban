@@ -335,12 +335,7 @@ export function BookingConfirmClient({
                   Free during beta
                 </span>
               ) : (
-                <span>
-                  $
-                  {durationMinutes === 15
-                    ? teacherProfile.hourly_rate / 4
-                    : teacherProfile.hourly_rate / 2}
-                </span>
+                <span>${teacherProfile.hourly_rate / 2}</span>
               )}
             </div>
           </div>

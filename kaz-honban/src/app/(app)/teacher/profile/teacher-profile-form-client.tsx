@@ -64,9 +64,8 @@ export function TeacherProfileFormClient({
   const [categories, setCategories] = useState<string[]>(existingProfile?.categories ?? []);
   const [languages, setLanguages] = useState<string[]>(existingProfile?.languages ?? []);
   const [levels, setLevels] = useState<string[]>(existingProfile?.levels ?? []);
-  const [durationOptions, setDurationOptions] = useState<number[]>(
-    existingProfile?.lesson_duration_options ?? [15]
-  );
+  // Lessons are fixed at 30 minutes across the platform.
+  const durationOptions = [30];
   const [teachingStyle, setTeachingStyle] = useState(existingProfile?.teaching_style ?? "");
   const [certifications, setCertifications] = useState(existingProfile?.certifications ?? "");
   const [introVideoUrl, setIntroVideoUrl] = useState(existingProfile?.intro_video_url ?? "");
@@ -163,14 +162,6 @@ export function TeacherProfileFormClient({
 
   function toggleArrayItem(arr: string[], item: string, setter: (v: string[]) => void) {
     setter(arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item]);
-  }
-
-  function toggleDuration(d: number) {
-    setDurationOptions(
-      durationOptions.includes(d)
-        ? durationOptions.filter((x) => x !== d)
-        : [...durationOptions, d]
-    );
   }
 
   async function handleSave(submitForReview = false) {
@@ -407,26 +398,13 @@ export function TeacherProfileFormClient({
             onChange={(e) => setHourlyRate(Number(e.target.value))}
             className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-gold/50 transition"
           />
+          <p className="mt-1 text-xs text-text-muted">
+            Per 30-min lesson: ${hourlyRate / 2}
+          </p>
         </div>
         <div>
           <label className="text-sm text-text-secondary mb-1 block">{t("profile.durations")}</label>
-          <div className="flex gap-3">
-            {[15, 30].map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => toggleDuration(d)}
-                className={cn(
-                  "flex-1 py-3 rounded-xl font-medium text-sm transition",
-                  durationOptions.includes(d)
-                    ? "bg-gold text-white"
-                    : "bg-white/5 text-text-secondary hover:bg-white/10"
-                )}
-              >
-                {d} min
-              </button>
-            ))}
-          </div>
+          <p className="text-xs text-text-muted">All lessons are 30 minutes.</p>
         </div>
         <div className="flex items-center justify-between">
           <label className="text-sm text-text-secondary">{t("profile.trial")}</label>

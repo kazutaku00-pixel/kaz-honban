@@ -63,7 +63,27 @@ export function UserProvider({ children }: { children: ReactNode }) {
       ]);
 
       if (profileData) {
-        setProfile(profileData as unknown as Profile);
+        const p = profileData as unknown as Profile;
+        setProfile(p);
+
+        // Auto-save the browser's timezone the first time we see 'UTC'
+        // (the DB default). Avoids every new signup starting with UTC.
+        if (p.timezone === "UTC" && typeof window !== "undefined") {
+          try {
+            const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (detected && detected !== "UTC") {
+              fetch("/api/profile/timezone", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ timezone: detected }),
+              }).then((r) => {
+                if (r.ok) setProfile({ ...p, timezone: detected });
+              }).catch(() => {});
+            }
+          } catch {
+            // Intl not available — leave timezone as UTC
+          }
+        }
       }
       if (rolesData) {
         setRoles(

@@ -47,6 +47,23 @@ export async function POST(
       );
     }
 
+    // Time gate: allow join from 15 min before start until 2 hours after end
+    const now = Date.now();
+    const startMs = new Date(booking.scheduled_start_at).getTime();
+    const endMs = new Date(booking.scheduled_end_at).getTime();
+    if (now < startMs - 15 * 60 * 1000) {
+      return NextResponse.json(
+        { error: "The room opens 15 minutes before the lesson start time." },
+        { status: 403 }
+      );
+    }
+    if (now > endMs + 2 * 60 * 60 * 1000) {
+      return NextResponse.json(
+        { error: "The room window for this lesson has closed." },
+        { status: 403 }
+      );
+    }
+
     // Get user profile for display name
     const { data: profileRaw } = await supabase
       .from("profiles")
@@ -115,12 +132,14 @@ export async function POST(
         .eq("id", bookingId);
     }
 
-    // Generate meeting token
+    // Generate meeting token — only the teacher gets owner privileges
+    const isOwner = user.id === booking.teacher_id;
     const token = await createMeetingToken(
       room.daily_room_name,
       user.id,
       userName,
-      roomExpiry
+      roomExpiry,
+      isOwner
     );
 
     return NextResponse.json({

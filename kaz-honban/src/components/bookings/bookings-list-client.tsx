@@ -125,6 +125,29 @@ export function BookingsListClient({
     }
   }
 
+  async function handleReschedule(booking: BookingItem) {
+    if (!booking.teacher?.id) return;
+    setCancellingId(booking.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/bookings/${booking.id}/cancel`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cancellation_reason: "Rescheduling" }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Could not reschedule");
+        return;
+      }
+      router.push(`/teachers/${booking.teacher.id}#available-slots`);
+    } catch {
+      setError("Could not reschedule. Please try again.");
+    } finally {
+      setCancellingId(null);
+    }
+  }
+
   async function handleJoin(bookingId: string) {
     setJoiningId(bookingId);
     setError(null);
@@ -331,6 +354,21 @@ export function BookingsListClient({
                               <Video className="w-4 h-4" />
                             )}
                             Join Room
+                          </button>
+                        )}
+                        {!isTeacher && booking.teacher?.id && (
+                          <button
+                            onClick={() => handleReschedule(booking)}
+                            disabled={cancellingId === booking.id}
+                            className={cn(
+                              "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl",
+                              "bg-white/5 text-gray-300 font-medium text-xs",
+                              "hover:bg-white/10 transition",
+                              "disabled:opacity-50"
+                            )}
+                          >
+                            <Calendar className="w-4 h-4" />
+                            Reschedule
                           </button>
                         )}
                         <button

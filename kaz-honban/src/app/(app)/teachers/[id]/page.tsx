@@ -95,7 +95,6 @@ export default async function TeacherDetailPage({ params }: PageProps) {
     ? extractYouTubeId(t.intro_video_url)
     : null;
   const hasVideo = hasDirectVideo || !!youtubeId;
-  const has30min = t.lesson_duration_options.includes(30);
 
   // ─── About Tab Content ───
   const aboutContent = (
@@ -329,15 +328,9 @@ export default async function TeacherDetailPage({ params }: PageProps) {
                 {/* Price */}
                 <div className="flex items-baseline gap-3 flex-wrap">
                   <div className="bg-bg-secondary rounded-xl px-4 py-2 border border-border">
-                    <span className="text-xl font-bold text-text-primary">${t.hourly_rate}</span>
-                    <span className="text-xs text-text-muted ml-1">/15min</span>
+                    <span className="text-xl font-bold text-text-primary">${t.hourly_rate / 2}</span>
+                    <span className="text-xs text-text-muted ml-1">/30min</span>
                   </div>
-                  {has30min && (
-                    <div className="bg-bg-secondary rounded-xl px-4 py-2 border border-border">
-                      <span className="text-xl font-bold text-text-primary">${t.hourly_rate * 2}</span>
-                      <span className="text-xs text-text-muted ml-1">/30min</span>
-                    </div>
-                  )}
                   {t.trial_enabled && t.trial_price !== null && (
                     <div className="bg-accent-subtle rounded-xl px-4 py-2 border border-accent/30">
                       <span className="text-sm font-bold text-accent">Trial ${t.trial_price}</span>
@@ -418,15 +411,9 @@ export default async function TeacherDetailPage({ params }: PageProps) {
                 </div>
                 <div className="mt-4 flex items-baseline gap-3 flex-wrap">
                   <div className="bg-bg-secondary rounded-xl px-4 py-2 border border-border">
-                    <span className="text-xl font-bold text-text-primary">${t.hourly_rate}</span>
-                    <span className="text-xs text-text-muted ml-1">/15min</span>
+                    <span className="text-xl font-bold text-text-primary">${t.hourly_rate / 2}</span>
+                    <span className="text-xs text-text-muted ml-1">/30min</span>
                   </div>
-                  {has30min && (
-                    <div className="bg-bg-secondary rounded-xl px-4 py-2 border border-border">
-                      <span className="text-xl font-bold text-text-primary">${t.hourly_rate * 2}</span>
-                      <span className="text-xs text-text-muted ml-1">/30min</span>
-                    </div>
-                  )}
                   {t.trial_enabled && t.trial_price !== null && (
                     <div className="bg-accent-subtle rounded-xl px-4 py-2 border border-accent/30">
                       <span className="text-sm font-bold text-accent">Trial ${t.trial_price}</span>
@@ -476,7 +463,7 @@ export default async function TeacherDetailPage({ params }: PageProps) {
       </div>
 
       {/* Sticky CTA (scroll-triggered, mobile + desktop) */}
-      <TeacherStickyCTA hourlyRate={t.hourly_rate} has30min={has30min} />
+      <TeacherStickyCTA hourlyRate={t.hourly_rate} />
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { AvailabilitySlot } from "@/types/database";
 
 interface AvailableSlotsProps {
@@ -15,6 +15,7 @@ interface AvailableSlotsProps {
 const SLOT_RANGE_DAYS = 14;
 const VISIBLE_DAYS = 5;
 const SLOTS_PER_DAY_COLLAPSED = 4;
+const MIN_LEAD_MINUTES = 60;
 
 function getNextDays(): Date[] {
   const days: Date[] = [];
@@ -77,7 +78,6 @@ export function AvailableSlots({ teacherId, teacherTimezone }: AvailableSlotsPro
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [dayOffset, setDayOffset] = useState(0);
-  const [duration, setDuration] = useState<number>(15);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
   const userTz = useMemo(() => getUserTimezone(), []);
   const showDualTimezone = !!teacherTimezone && teacherTimezone !== userTz;
@@ -102,7 +102,25 @@ export function AvailableSlots({ teacherId, teacherTimezone }: AvailableSlotsPro
         .lt("start_at", endOfRange.toISOString())
         .order("start_at", { ascending: true });
 
-      setSlots(data ?? []);
+      const raw = (data ?? []) as unknown as AvailabilitySlot[];
+
+      // Always book a full 30-min lesson: if a slot is shorter than 30 min
+      // (legacy 15-min slots), it must chain with the next open slot.
+      const openStartTimes = new Set(raw.map((s) => s.start_at));
+      const lessonEndsAt = (s: AvailabilitySlot) =>
+        new Date(new Date(s.start_at).getTime() + 30 * 60 * 1000).toISOString();
+
+      const leadCutoff = Date.now() + MIN_LEAD_MINUTES * 60 * 1000;
+
+      const bookable = raw.filter((s) => {
+        if (new Date(s.start_at).getTime() < leadCutoff) return false;
+        // Slot already covers 30 min on its own
+        if (new Date(s.end_at).getTime() >= new Date(lessonEndsAt(s)).getTime()) return true;
+        // Otherwise require a consecutive open slot
+        return openStartTimes.has(s.end_at);
+      });
+
+      setSlots(bookable);
       setLoading(false);
     }
     fetchSlots();
@@ -133,7 +151,7 @@ export function AvailableSlots({ teacherId, teacherTimezone }: AvailableSlotsPro
 
   const handleSlotClick = (slot: AvailabilitySlot) => {
     router.push(
-      `/booking/confirm?teacher_id=${teacherId}&slot_id=${slot.id}&duration=${duration}`
+      `/booking/confirm?teacher_id=${teacherId}&slot_id=${slot.id}`
     );
   };
 
@@ -164,25 +182,8 @@ export function AvailableSlots({ teacherId, teacherTimezone }: AvailableSlotsPro
         </span>
       </div>
 
-      {/* Duration toggle */}
-      <div className="flex gap-2 mb-5">
-        {[15, 30].map((d) => (
-          <button
-            key={d}
-            type="button"
-            onClick={() => setDuration(d)}
-            className={cn(
-              "px-4 py-2 rounded-xl text-sm font-medium transition-colors",
-              duration === d
-                ? "bg-accent text-white"
-                : "bg-bg-tertiary text-text-secondary border border-border hover:border-border-hover"
-            )}
-          >
-            <Clock size={14} className="inline mr-1.5 -mt-0.5" />
-            {d} min
-          </button>
-        ))}
-      </div>
+      {/* Duration is fixed at 30 min */}
+      <p className="text-xs text-text-muted mb-5">All lessons are 30 minutes.</p>
 
       {/* Cambly-style multi-column day view */}
       {loading ? (

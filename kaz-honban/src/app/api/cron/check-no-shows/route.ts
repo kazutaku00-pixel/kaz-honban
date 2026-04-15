@@ -74,31 +74,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Release slots for no-show bookings
+    // Release every slot inside each booking window (duration-agnostic)
     for (const noShowBooking of noShowBookings) {
-      await supabase
-        .from("availability_slots")
-        .update({ status: "open", held_by: null, held_until: null } as never)
-        .eq("id", noShowBooking.slot_id);
-
-      // For double-slot (30 or 50 min), release consecutive slot too
-      if (noShowBooking.duration_minutes === 30 || noShowBooking.duration_minutes === 50) {
-        const { data: primarySlotRaw } = await supabase
-          .from("availability_slots")
-          .select("end_at")
-          .eq("id", noShowBooking.slot_id)
-          .single();
-
-        if (primarySlotRaw) {
-          const primarySlot = primarySlotRaw as unknown as { end_at: string };
-          await supabase
-            .from("availability_slots")
-            .update({ status: "open", held_by: null, held_until: null } as never)
-            .eq("teacher_id", noShowBooking.teacher_id)
-            .eq("start_at", primarySlot.end_at)
-            .in("status", ["booked", "held"]);
-        }
-      }
+      await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<unknown>)(
+        "release_booking_slots",
+        { p_booking_id: noShowBooking.id }
+      );
     }
 
     // Notify both parties about no-show

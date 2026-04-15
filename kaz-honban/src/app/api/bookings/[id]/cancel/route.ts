@@ -1,7 +1,7 @@
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { notifyBookingCancelled } from "@/lib/notifications";
-import type { Booking, AvailabilitySlot } from "@/types/database";
+import type { Booking } from "@/types/database";
 
 const LEARNER_CANCEL_DEADLINE_HOURS = 2;
 
@@ -94,30 +94,11 @@ export async function PATCH(
       );
     }
 
-    // Release the primary slot
-    await supabase
-      .from("availability_slots")
-      .update({ status: "open", held_by: null, held_until: null } as never)
-      .eq("id", booking.slot_id);
-
-    // For double-slot bookings (30 or 50 min), release the consecutive slot too
-    if (booking.duration_minutes === 30 || booking.duration_minutes === 50) {
-      const { data: primarySlotRaw } = await supabase
-        .from("availability_slots")
-        .select("end_at, teacher_id")
-        .eq("id", booking.slot_id)
-        .single();
-
-      if (primarySlotRaw) {
-        const primarySlot = primarySlotRaw as unknown as Pick<AvailabilitySlot, "end_at" | "teacher_id">;
-        await supabase
-          .from("availability_slots")
-          .update({ status: "open", held_by: null, held_until: null } as never)
-          .eq("teacher_id", primarySlot.teacher_id)
-          .eq("start_at", primarySlot.end_at)
-          .in("status", ["booked", "held"]);
-      }
-    }
+    // Release every slot inside the booking window (duration-agnostic)
+    await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<unknown>)(
+      "release_booking_slots",
+      { p_booking_id: bookingId }
+    );
 
     // Notify the other party
     const { data: cancellerProfile } = await supabase

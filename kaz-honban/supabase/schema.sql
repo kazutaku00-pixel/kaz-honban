@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS teacher_profiles (
   bio TEXT,
   intro_video_url TEXT,
   hourly_rate DECIMAL(10,2) NOT NULL DEFAULT 15.00,
-  lesson_duration_options INTEGER[] NOT NULL DEFAULT '{15, 30}',
+  lesson_duration_options INTEGER[] NOT NULL DEFAULT '{30}',
   teaching_style TEXT,
   certifications TEXT,
   categories TEXT[] NOT NULL DEFAULT '{}',

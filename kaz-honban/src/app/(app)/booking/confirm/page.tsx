@@ -7,22 +7,18 @@ interface PageProps {
   searchParams: Promise<{
     teacher_id?: string;
     slot_id?: string;
-    duration?: string;
   }>;
 }
 
 export default async function BookingConfirmPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const { teacher_id, slot_id, duration } = params;
+  const { teacher_id, slot_id } = params;
 
-  if (!teacher_id || !slot_id || !duration) {
+  if (!teacher_id || !slot_id) {
     redirect("/");
   }
 
-  const durationMinutes = Number(duration);
-  if (![15, 25, 30, 50].includes(durationMinutes)) {
-    redirect("/");
-  }
+  const durationMinutes = 30; // Lessons are fixed at 30 min
 
   const supabase = await createServerSupabaseClient();
 

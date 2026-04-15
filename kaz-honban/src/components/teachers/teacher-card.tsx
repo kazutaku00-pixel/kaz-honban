@@ -253,9 +253,9 @@ export function TeacherCard({
         <div className="flex items-center justify-between pt-3 border-t border-border">
           <div>
             <span className="text-base font-bold text-text-primary">
-              ${teacher.hourly_rate}
+              ${teacher.hourly_rate / 2}
             </span>
-            <span className="text-[10px] text-text-muted"> /15min</span>
+            <span className="text-[10px] text-text-muted"> /30min</span>
             {teacher.trial_enabled && (
               <span className="ml-2 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider rounded bg-emerald-500/15 text-emerald-400 align-middle">
                 {teacher.trial_price && teacher.trial_price > 0

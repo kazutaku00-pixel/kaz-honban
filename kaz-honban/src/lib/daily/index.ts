@@ -50,7 +50,8 @@ export async function createMeetingToken(
   roomName: string,
   userId: string,
   userName: string,
-  expiresAt: Date
+  expiresAt: Date,
+  isOwner: boolean = false
 ) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
@@ -69,7 +70,7 @@ export async function createMeetingToken(
           user_id: userId,
           user_name: userName,
           exp: Math.floor(expiresAt.getTime() / 1000),
-          is_owner: true,
+          is_owner: isOwner,
         },
       }),
     });
