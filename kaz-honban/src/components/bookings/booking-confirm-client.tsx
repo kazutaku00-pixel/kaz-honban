@@ -401,6 +401,13 @@ export function BookingConfirmClient({
             Free cancellation up to 2 hours before the lesson. After that, cancellation is not possible — please contact the teacher directly.
           </p>
         </div>
+
+        <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/15 p-4 space-y-1">
+          <p className="text-xs text-emerald-300 font-medium">First-lesson guarantee</p>
+          <p className="text-xs text-gray-400">
+            Not the right fit? Email us within 48 hours of your first lesson for a full refund.
+          </p>
+        </div>
       </div>
     </div>
   );

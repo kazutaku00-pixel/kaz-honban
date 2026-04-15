@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Star, Heart, Play, BadgeCheck } from "lucide-react";
+import { Star, Heart, Play, BadgeCheck, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import type { TeacherWithProfile } from "@/types/database";
@@ -217,9 +217,19 @@ export function TeacherCard({
         </div>
 
         {/* Headline */}
-        <p className="text-xs text-text-secondary leading-relaxed mb-3 line-clamp-2">
+        <p className="text-xs text-text-secondary leading-relaxed mb-2 line-clamp-2">
           {teacher.headline}
         </p>
+
+        {/* Social proof row */}
+        {teacher.total_lessons >= 3 && (
+          <div className="flex items-center gap-1 mb-3 text-[10px] text-text-muted">
+            <Clock size={10} />
+            <span>
+              {Math.round((teacher.total_lessons * 30) / 60)}h+ taught on NihonGo
+            </span>
+          </div>
+        )}
 
         {/* Category + language tags (compact) */}
         <div className="flex flex-wrap gap-1 mb-3 overflow-hidden max-h-[24px]">

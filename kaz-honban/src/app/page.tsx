@@ -4,6 +4,7 @@ import { Teachers } from "@/components/landing/teachers";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { Testimonials } from "@/components/landing/testimonials";
 import { Pricing } from "@/components/landing/pricing";
+import { Trust } from "@/components/landing/trust";
 import { FAQ } from "@/components/landing/faq";
 import { CTASection } from "@/components/landing/cta-section";
 import { Footer } from "@/components/landing/footer";
@@ -18,6 +19,7 @@ export default function LandingPage() {
         <HowItWorks />
         <Testimonials />
         <Pricing />
+        <Trust />
         <FAQ />
         <CTASection />
       </main>

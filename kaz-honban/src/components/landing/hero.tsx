@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { siteConfig } from "@/config/site";
 import { cn } from "@/lib/utils";
-import { ArrowRight, Instagram } from "lucide-react";
+import { ArrowRight, Instagram, Sparkles } from "lucide-react";
 
 export function Hero() {
   const { hero } = siteConfig;
@@ -90,8 +91,8 @@ export function Hero() {
             className="mt-10 flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto animate-fade-slide-up"
             style={{ animationDelay: "0.5s" }}
           >
-            <a
-              href="/signup"
+            <Link
+              href="/quiz"
               className={cn(
                 "group flex items-center justify-center gap-2 w-full sm:w-auto",
                 "px-8 py-4 rounded-2xl text-base font-semibold",
@@ -101,14 +102,15 @@ export function Hero() {
                 "hover:scale-[1.02] active:scale-[0.98]"
               )}
             >
-              Start Learning
+              <Sparkles size={16} />
+              Find my teacher in 60s
               <ArrowRight
                 size={18}
                 className="transition-transform group-hover:translate-x-1"
               />
-            </a>
-            <a
-              href="#how-it-works"
+            </Link>
+            <Link
+              href="/teachers"
               className={cn(
                 "flex items-center justify-center w-full sm:w-auto",
                 "px-8 py-4 rounded-2xl text-base font-medium",
@@ -116,8 +118,8 @@ export function Hero() {
                 "hover:bg-white/5 hover:border-border-hover transition-all duration-300"
               )}
             >
-              How It Works
-            </a>
+              Browse all teachers
+            </Link>
           </div>
 
           {/* Stats */}

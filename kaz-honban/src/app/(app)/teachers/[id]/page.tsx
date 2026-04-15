@@ -3,7 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Star, Globe, BookOpen, BadgeCheck, Play } from "lucide-react";
-import { CATEGORIES, LANGUAGES, LEVELS } from "@/lib/validations";
+import { CATEGORIES, LANGUAGES, LEVELS, REVIEW_TAGS } from "@/lib/validations";
 import { AvailableSlots } from "@/components/teachers/available-slots";
 import { TeacherDetailTabs } from "@/components/teachers/teacher-detail-tabs";
 import { IntroVideoPlayer } from "@/components/teachers/intro-video-player";
@@ -85,6 +85,18 @@ export default async function TeacherDetailPage({ params }: PageProps) {
     .limit(10);
 
   const reviewList = (reviews ?? []) as ReviewWithReviewer[];
+
+  // Aggregate review tags across the teacher's reviews — top 5 by frequency.
+  const tagCounts = new Map<string, number>();
+  for (const r of reviewList) {
+    for (const tag of r.tags ?? []) {
+      tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+    }
+  }
+  const topTags = Array.from(tagCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
   const profile = t.profile;
   const initial = (profile.display_name ?? "?")[0].toUpperCase();
   const colorIdx = initial.charCodeAt(0) % avatarColors.length;
@@ -154,6 +166,14 @@ export default async function TeacherDetailPage({ params }: PageProps) {
                 <BookOpen size={12} /> <T k="detail.totalLessons" />
               </span>
               <span className="text-sm font-semibold text-text-primary">{t.total_lessons}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-text-muted flex items-center gap-1">
+                <BookOpen size={12} /> Hours taught
+              </span>
+              <span className="text-sm font-semibold text-text-primary">
+                {Math.round((t.total_lessons * 30) / 60)}h
+              </span>
             </div>
           </div>
         </div>
@@ -236,6 +256,21 @@ export default async function TeacherDetailPage({ params }: PageProps) {
                 <p className="text-sm text-text-secondary leading-relaxed">
                   {review.comment}
                 </p>
+              )}
+              {review.tags && review.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {review.tags.map((tag) => {
+                    const label = REVIEW_TAGS.find((x) => x.value === tag)?.label ?? tag;
+                    return (
+                      <span
+                        key={tag}
+                        className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                      >
+                        {label}
+                      </span>
+                    );
+                  })}
+                </div>
               )}
             </div>
           ))}
@@ -452,6 +487,29 @@ export default async function TeacherDetailPage({ params }: PageProps) {
             </span>
           ))}
         </div>
+
+        {/* Aggregated review tags (social proof) */}
+        {topTags.length > 0 && (
+          <div className="mb-6 bg-bg-secondary rounded-2xl border border-border p-4">
+            <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
+              What learners say
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {topTags.map(([value, count]) => {
+                const label = REVIEW_TAGS.find((x) => x.value === value)?.label ?? value;
+                return (
+                  <span
+                    key={value}
+                    className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                  >
+                    {label}
+                    <span className="ml-1.5 text-emerald-400/70 font-semibold">×{count}</span>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Tabbed content */}
         <TeacherDetailTabs

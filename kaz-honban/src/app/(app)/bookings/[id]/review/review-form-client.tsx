@@ -7,6 +7,9 @@ import Image from "next/image";
 import { Star, ArrowRight, CheckCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { REVIEW_TAGS } from "@/lib/validations";
+
+const MAX_TAGS = 6;
 
 interface ReviewFormClientProps {
   booking: {
@@ -29,11 +32,22 @@ export function ReviewFormClient({
   const [rating, setRating] = useState(0);
   const [hoveredStar, setHoveredStar] = useState(0);
   const [comment, setComment] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(alreadyReviewed);
   const [error, setError] = useState<string | null>(null);
 
-  useUnsavedChanges((rating > 0 || comment.length > 0) && !submitted);
+  useUnsavedChanges(
+    (rating > 0 || comment.length > 0 || selectedTags.length > 0) && !submitted
+  );
+
+  function toggleTag(value: string) {
+    setSelectedTags((prev) => {
+      if (prev.includes(value)) return prev.filter((t) => t !== value);
+      if (prev.length >= MAX_TAGS) return prev;
+      return [...prev, value];
+    });
+  }
 
   async function handleSubmit() {
     if (rating === 0) return;
@@ -47,6 +61,7 @@ export function ReviewFormClient({
           booking_id: booking.id,
           rating,
           comment: comment.trim() || undefined,
+          tags: selectedTags.length > 0 ? selectedTags : undefined,
         }),
       });
       if (!res.ok) {
@@ -208,6 +223,43 @@ export function ReviewFormClient({
                   : "Amazing!"}
         </p>
       </div>
+
+      {/* Tag chips — quick, low-friction signal */}
+      {rating > 0 && (
+        <div className="bg-bg-secondary rounded-2xl border border-border p-6 space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-text-secondary">
+              What stood out? <span className="text-text-muted">(optional)</span>
+            </label>
+            <span className="text-xs text-text-muted">
+              {selectedTags.length}/{MAX_TAGS}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {REVIEW_TAGS.map((tag) => {
+              const active = selectedTags.includes(tag.value);
+              const disabled = !active && selectedTags.length >= MAX_TAGS;
+              return (
+                <button
+                  key={tag.value}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => toggleTag(tag.value)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-xs font-medium border transition",
+                    active
+                      ? "bg-accent text-white border-accent"
+                      : "bg-white/5 text-text-secondary border-border hover:border-border-hover",
+                    disabled && "opacity-40 cursor-not-allowed"
+                  )}
+                >
+                  {tag.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Comment */}
       <div className="bg-bg-secondary rounded-2xl border border-border p-6 space-y-3">
