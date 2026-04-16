@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES, LANGUAGES, LEVELS } from "@/lib/validations";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import type { TeacherApprovalStatus } from "@/types/database";
 
 interface TeacherProfileFormClientProps {
@@ -35,6 +36,9 @@ interface TeacherProfileFormClientProps {
     lesson_duration_options: number[];
     teaching_style: string;
     certifications: string;
+    university: string | null;
+    country_of_origin: string | null;
+    years_of_experience: number | null;
     intro_video_url: string;
     trial_enabled: boolean;
     trial_price: number;
@@ -68,6 +72,11 @@ export function TeacherProfileFormClient({
   const durationOptions = [30];
   const [teachingStyle, setTeachingStyle] = useState(existingProfile?.teaching_style ?? "");
   const [certifications, setCertifications] = useState(existingProfile?.certifications ?? "");
+  const [university, setUniversity] = useState(existingProfile?.university ?? "");
+  const [countryOfOrigin, setCountryOfOrigin] = useState(existingProfile?.country_of_origin ?? "");
+  const [yearsOfExperience, setYearsOfExperience] = useState<number | "">(
+    existingProfile?.years_of_experience ?? ""
+  );
   const [introVideoUrl, setIntroVideoUrl] = useState(existingProfile?.intro_video_url ?? "");
   const [trialEnabled, setTrialEnabled] = useState(existingProfile?.trial_enabled ?? false);
   const [trialPrice, setTrialPrice] = useState(existingProfile?.trial_price ?? 0);
@@ -76,6 +85,25 @@ export function TeacherProfileFormClient({
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const hasDirty =
+    headline !== (existingProfile?.headline ?? "") ||
+    bio !== (existingProfile?.bio ?? "") ||
+    hourlyRate !== (existingProfile?.hourly_rate ?? 15) ||
+    teachingStyle !== (existingProfile?.teaching_style ?? "") ||
+    certifications !== (existingProfile?.certifications ?? "") ||
+    university !== (existingProfile?.university ?? "") ||
+    countryOfOrigin !== (existingProfile?.country_of_origin ?? "") ||
+    String(yearsOfExperience) !== String(existingProfile?.years_of_experience ?? "") ||
+    introVideoUrl !== (existingProfile?.intro_video_url ?? "") ||
+    trialEnabled !== (existingProfile?.trial_enabled ?? false) ||
+    trialPrice !== (existingProfile?.trial_price ?? 0) ||
+    isPublic !== (existingProfile?.is_public ?? false) ||
+    JSON.stringify(categories) !== JSON.stringify(existingProfile?.categories ?? []) ||
+    JSON.stringify(languages) !== JSON.stringify(existingProfile?.languages ?? []) ||
+    JSON.stringify(levels) !== JSON.stringify(existingProfile?.levels ?? []);
+
+  useUnsavedChanges(hasDirty && !saved);
 
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -187,6 +215,9 @@ export function TeacherProfileFormClient({
         lesson_duration_options: durationOptions,
         teaching_style: teachingStyle.trim() || null,
         certifications: certifications.trim() || null,
+        university: university.trim() || null,
+        country_of_origin: countryOfOrigin.trim() || null,
+        years_of_experience: yearsOfExperience === "" ? null : Number(yearsOfExperience),
         intro_video_url: introVideoUrl.trim() || null,
         trial_enabled: trialEnabled,
         trial_price: trialPrice,
@@ -482,6 +513,51 @@ export function TeacherProfileFormClient({
             rows={2}
             placeholder={t("profile.certPlaceholder")}
             className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary placeholder:text-text-muted resize-none focus:outline-none focus:border-gold/50 transition"
+          />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-sm text-text-secondary mb-1 block">{t("profile.university")}</label>
+            <input
+              type="text"
+              value={university}
+              onChange={(e) => setUniversity(e.target.value)}
+              maxLength={100}
+              placeholder={t("profile.universityPlaceholder")}
+              className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-gold/50 transition"
+            />
+          </div>
+          <div>
+            <label className="text-sm text-text-secondary mb-1 block">{t("profile.countryOfOrigin")}</label>
+            <input
+              type="text"
+              value={countryOfOrigin}
+              onChange={(e) => setCountryOfOrigin(e.target.value)}
+              maxLength={60}
+              placeholder={t("profile.countryPlaceholder")}
+              className="w-full bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-gold/50 transition"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="text-sm text-text-secondary mb-1 block">{t("profile.yearsOfExperience")}</label>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={70}
+            value={yearsOfExperience}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "") {
+                setYearsOfExperience("");
+                return;
+              }
+              const n = Number(v);
+              if (Number.isFinite(n)) setYearsOfExperience(Math.max(0, Math.min(70, Math.floor(n))));
+            }}
+            placeholder="0"
+            className="w-full sm:w-40 bg-white/5 rounded-xl border border-border px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-gold/50 transition"
           />
         </div>
         <div>

@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS teacher_profiles (
   bio TEXT,
   intro_video_url TEXT,
   hourly_rate DECIMAL(10,2) NOT NULL DEFAULT 15.00,
-  lesson_duration_options INTEGER[] NOT NULL DEFAULT '{30}',
+  lesson_duration_options INTEGER[] NOT NULL DEFAULT '{30}' CHECK (lesson_duration_options = ARRAY[30]),
   teaching_style TEXT,
   certifications TEXT,
   categories TEXT[] NOT NULL DEFAULT '{}',
@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   slot_id UUID NOT NULL REFERENCES availability_slots(id),
   scheduled_start_at TIMESTAMPTZ NOT NULL,
   scheduled_end_at TIMESTAMPTZ NOT NULL,
-  duration_minutes INTEGER NOT NULL,
+  duration_minutes INTEGER NOT NULL CHECK (duration_minutes = 30),
   status booking_status NOT NULL DEFAULT 'confirmed',
   price_amount DECIMAL(10,2),
   platform_fee_amount DECIMAL(10,2),
@@ -308,29 +308,34 @@ $$ LANGUAGE plpgsql;
 
 -- ===========================================
 -- Atomic booking function (prevents race conditions)
--- Uses SELECT FOR UPDATE to lock slots within a transaction
+-- 30-minute lessons only. Locks as many consecutive open slots as needed
+-- to cover the full 30 min, so this works with 15- or 30-min slot grids.
 -- ===========================================
 CREATE OR REPLACE FUNCTION create_booking_atomic(
   p_learner_id UUID,
   p_teacher_id UUID,
   p_slot_id UUID,
   p_duration_minutes INTEGER,
-  p_learner_note TEXT DEFAULT NULL
+  p_learner_note TEXT DEFAULT NULL,
+  p_min_lead_minutes INTEGER DEFAULT 60
 )
 RETURNS JSON AS $$
 DECLARE
   v_slot RECORD;
-  v_next_slot RECORD;
-  v_booking RECORD;
+  v_next RECORD;
   v_slot_ids UUID[];
+  v_covered_until TIMESTAMPTZ;
   v_scheduled_end TIMESTAMPTZ;
+  v_booking RECORD;
 BEGIN
-  -- 1. Prevent booking yourself
+  IF p_duration_minutes <> 30 THEN
+    RETURN json_build_object('error', 'Only 30-minute lessons are supported', 'code', 400);
+  END IF;
+
   IF p_learner_id = p_teacher_id THEN
     RETURN json_build_object('error', 'Cannot book yourself', 'code', 400);
   END IF;
 
-  -- 2. Validate teacher is approved and public
   IF NOT EXISTS (
     SELECT 1 FROM teacher_profiles
     WHERE user_id = p_teacher_id
@@ -340,7 +345,6 @@ BEGIN
     RETURN json_build_object('error', 'Teacher is not available for booking', 'code', 400);
   END IF;
 
-  -- 3. Lock and validate the primary slot (SELECT FOR UPDATE prevents race condition)
   SELECT * INTO v_slot
   FROM availability_slots
   WHERE id = p_slot_id
@@ -352,55 +356,58 @@ BEGIN
     RETURN json_build_object('error', 'Slot is no longer available', 'code', 409);
   END IF;
 
-  -- 4. Prevent booking past slots (must be at least 30 min in the future)
-  IF v_slot.start_at < (now() + interval '1 minute') THEN
-    RETURN json_build_object('error', 'Cannot book a slot in the past', 'code', 400);
+  IF v_slot.start_at < (now() + make_interval(mins => GREATEST(p_min_lead_minutes, 0))) THEN
+    RETURN json_build_object(
+      'error', 'Lessons must be booked at least ' || p_min_lead_minutes || ' minutes in advance',
+      'code', 400
+    );
   END IF;
 
-  -- 5. Check learner doesn't have an overlapping booking
+  v_scheduled_end := v_slot.start_at + interval '30 minutes';
+
   IF EXISTS (
     SELECT 1 FROM bookings
     WHERE learner_id = p_learner_id
       AND status IN ('confirmed', 'in_session')
-      AND scheduled_start_at < (v_slot.start_at + (p_duration_minutes || ' minutes')::interval)
+      AND scheduled_start_at < v_scheduled_end
       AND scheduled_end_at > v_slot.start_at
   ) THEN
     RETURN json_build_object('error', 'You already have a booking at this time', 'code', 409);
   END IF;
 
-  v_slot_ids := ARRAY[p_slot_id];
-  v_scheduled_end := v_slot.end_at;
+  v_slot_ids := ARRAY[v_slot.id];
+  v_covered_until := v_slot.end_at;
 
-  -- 6. For double-slot lessons (30 or 50 min), lock the exact next consecutive slot
-  IF p_duration_minutes IN (30, 50) THEN
-    SELECT * INTO v_next_slot
+  WHILE v_covered_until < v_scheduled_end LOOP
+    SELECT * INTO v_next
     FROM availability_slots
     WHERE teacher_id = p_teacher_id
       AND status = 'open'
-      AND start_at = v_slot.end_at  -- exact match, not gte
+      AND start_at = v_covered_until
     FOR UPDATE;
 
-    IF v_next_slot IS NULL THEN
-      RETURN json_build_object('error', 'Consecutive slot not available for this lesson duration', 'code', 409);
+    IF v_next IS NULL THEN
+      RETURN json_build_object(
+        'error', 'Teacher does not have enough consecutive availability for this lesson',
+        'code', 409
+      );
     END IF;
 
-    v_slot_ids := v_slot_ids || v_next_slot.id;
-    v_scheduled_end := v_next_slot.end_at;
-  END IF;
+    v_slot_ids := v_slot_ids || v_next.id;
+    v_covered_until := v_next.end_at;
+  END LOOP;
 
-  -- 7. Mark slots as booked (skip held state — atomic = no need for hold)
   UPDATE availability_slots
   SET status = 'booked', held_by = NULL, held_until = NULL, updated_at = now()
   WHERE id = ANY(v_slot_ids);
 
-  -- 8. Create booking
   INSERT INTO bookings (
     learner_id, teacher_id, slot_id,
     scheduled_start_at, scheduled_end_at, duration_minutes,
     learner_note, status
   ) VALUES (
     p_learner_id, p_teacher_id, p_slot_id,
-    v_slot.start_at, v_scheduled_end, p_duration_minutes,
+    v_slot.start_at, v_scheduled_end, 30,
     p_learner_note, 'confirmed'
   )
   RETURNING * INTO v_booking;

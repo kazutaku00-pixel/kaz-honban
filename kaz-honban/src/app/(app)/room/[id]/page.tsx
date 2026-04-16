@@ -20,6 +20,7 @@ import { RoomChat } from "@/components/room/room-chat";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n";
+import { supportMailto, SUPPORT_EMAIL } from "@/lib/support";
 
 interface RoomData {
   url: string;
@@ -59,6 +60,13 @@ export default function VideoRoomPage() {
   const [joining, setJoining] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [learnerContext, setLearnerContext] = useState<{
+    learner_note: string | null;
+    learner_level: string | null;
+    learner_goals: string | null;
+    learner_interests: string[] | null;
+  } | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -95,6 +103,22 @@ export default function VideoRoomPage() {
     }
     fetchBooking();
   }, [bookingId, router]);
+
+  // Teacher-only: fetch learner context for pre-join briefing
+  useEffect(() => {
+    if (phase !== "prejoin" || !booking || !userId) return;
+    if (userId !== booking.teacher_id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/bookings/${bookingId}/learner-context`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setLearnerContext(data);
+      } catch { /* silent — this card is a nice-to-have */ }
+    })();
+    return () => { cancelled = true; };
+  }, [phase, booking, userId, bookingId]);
 
   // Device check — distinguish permission denial from hardware absence
   useEffect(() => {
@@ -180,20 +204,36 @@ export default function VideoRoomPage() {
     };
   }, [phase, booking]);
 
-  // Late indicator
+  // Late indicator — tiered guidance, re-evaluates every 30s
   useEffect(() => {
     if (!booking) return;
     const startTime = new Date(booking.scheduled_start_at).getTime();
-    const now = Date.now();
-    if (now > startTime + 3 * 60 * 1000) {
-      const lateMinutes = Math.floor((now - startTime) / 60000);
-      const isTeacher = userId === booking.teacher_id;
-      setLateMessage(
-        isTeacher
-          ? `Student is ${lateMinutes} min late. Please wait a few minutes.`
-          : `Teacher is ${lateMinutes} min late. Please wait a few minutes.`
-      );
+    const isTeacher = userId === booking.teacher_id;
+    const other = isTeacher ? "Student" : "Teacher";
+
+    function recompute() {
+      if (!booking) return;
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 3 * 60 * 1000) {
+        setLateMessage(null);
+        return;
+      }
+      const lateMinutes = Math.floor(elapsed / 60000);
+      if (elapsed >= 15 * 60 * 1000) {
+        setLateMessage(
+          `${other} is ${lateMinutes} min late. You can mark this as a no-show from your bookings page.`
+        );
+      } else if (elapsed >= 10 * 60 * 1000) {
+        setLateMessage(
+          `${other} is ${lateMinutes} min late. Try sending a message while you wait.`
+        );
+      } else {
+        setLateMessage(`${other} is ${lateMinutes} min late. Please wait a few minutes.`);
+      }
     }
+    recompute();
+    const id = setInterval(recompute, 30_000);
+    return () => clearInterval(id);
   }, [booking, userId]);
 
   const handleJoin = useCallback(async () => {
@@ -264,6 +304,12 @@ export default function VideoRoomPage() {
             >
               {tr("room.back")}
             </button>
+            <a
+              href={supportMailto(`Lesson room issue – booking ${bookingId}`)}
+              className="text-xs text-text-muted hover:text-text-secondary underline underline-offset-2"
+            >
+              Still stuck? Contact {SUPPORT_EMAIL}
+            </a>
           </div>
         </div>
       </div>
@@ -320,6 +366,55 @@ export default function VideoRoomPage() {
               </div>
             </div>
           </div>
+
+          {/* Learner context card (teacher only) */}
+          {userId === booking.teacher_id && learnerContext &&
+            (learnerContext.learner_level ||
+              learnerContext.learner_goals ||
+              (learnerContext.learner_interests?.length ?? 0) > 0 ||
+              learnerContext.learner_note) && (
+            <div className="bg-bg-secondary rounded-2xl border border-border p-6 space-y-3">
+              <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">
+                Student Context
+              </h2>
+              {learnerContext.learner_level && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-text-muted">Level</p>
+                  <p className="text-sm text-text-primary font-medium uppercase">
+                    {learnerContext.learner_level}
+                  </p>
+                </div>
+              )}
+              {learnerContext.learner_goals && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-text-muted">Goals</p>
+                  <p className="text-sm text-text-secondary whitespace-pre-line">
+                    {learnerContext.learner_goals}
+                  </p>
+                </div>
+              )}
+              {learnerContext.learner_interests && learnerContext.learner_interests.length > 0 && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-text-muted mb-1">Interests</p>
+                  <div className="flex flex-wrap gap-1">
+                    {learnerContext.learner_interests.map((i) => (
+                      <span key={i} className="px-2 py-0.5 rounded-full bg-accent/10 text-accent text-[10px]">
+                        {i}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {learnerContext.learner_note && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-text-muted">Note for this lesson</p>
+                  <p className="text-sm text-text-secondary italic whitespace-pre-line">
+                    &ldquo;{learnerContext.learner_note}&rdquo;
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Device status */}
           <div className="bg-bg-secondary rounded-2xl border border-border p-6 space-y-4">
@@ -449,7 +544,7 @@ export default function VideoRoomPage() {
               {tr("room.chat")}
             </button>
             <button
-              onClick={handleLeave}
+              onClick={() => setLeaveConfirmOpen(true)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/20 text-red-400 font-medium text-sm hover:bg-red-500/30 transition"
             >
               <PhoneOff size={14} />
@@ -487,6 +582,50 @@ export default function VideoRoomPage() {
             </div>
           )}
         </div>
+
+        {/* Leave confirmation modal */}
+        {leaveConfirmOpen && (
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
+            onClick={() => setLeaveConfirmOpen(false)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-2xl bg-bg-secondary border border-border p-6 space-y-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                  <AlertTriangle size={20} className="text-red-400" />
+                </div>
+                <h2 className="text-lg font-bold text-text-primary">
+                  {tr("room.leaveConfirmTitle")}
+                </h2>
+              </div>
+              <p className="text-sm text-text-muted">
+                {tr("room.leaveConfirmBody")}
+              </p>
+              <div className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
+                <button
+                  onClick={() => setLeaveConfirmOpen(false)}
+                  className="flex-1 py-3 rounded-xl bg-white/5 text-text-secondary font-medium text-sm hover:bg-white/10 transition"
+                >
+                  {tr("room.leaveConfirmCancel")}
+                </button>
+                <button
+                  onClick={() => {
+                    setLeaveConfirmOpen(false);
+                    handleLeave();
+                  }}
+                  className="flex-1 py-3 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-500/90 transition"
+                >
+                  {tr("room.leaveConfirmAction")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Mobile chat overlay */}
         {chatOpen && userId && (

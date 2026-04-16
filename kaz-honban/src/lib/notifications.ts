@@ -8,7 +8,8 @@ type NotificationType =
   | "review_received"
   | "report_ready"
   | "teacher_approved"
-  | "teacher_rejected";
+  | "teacher_rejected"
+  | "new_message";
 
 interface CreateNotificationParams {
   supabase: SupabaseClient;

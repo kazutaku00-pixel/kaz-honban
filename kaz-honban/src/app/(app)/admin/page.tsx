@@ -1,6 +1,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { Users, GraduationCap, CalendarDays, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SlotDiagnosticsPanel } from "@/components/admin/slot-diagnostics-panel";
 
 interface StatCard {
   label: string;
@@ -72,8 +73,8 @@ export default async function AdminDashboardPage() {
   ];
 
   return (
-    <div className="md:ml-56">
-      <h1 className="text-2xl font-bold text-text-primary mb-6">
+    <div className="md:ml-56 space-y-6">
+      <h1 className="text-2xl font-bold text-text-primary">
         Admin Dashboard
       </h1>
 
@@ -111,6 +112,9 @@ export default async function AdminDashboardPage() {
           </span>
         </div>
       </div>
+
+      {/* Slot diagnostics + manual generation */}
+      <SlotDiagnosticsPanel />
     </div>
   );
 }

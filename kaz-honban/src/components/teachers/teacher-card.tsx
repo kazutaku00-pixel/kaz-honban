@@ -16,8 +16,11 @@ const avatarColors = [
   "from-violet-500 to-purple-400",
 ];
 
-function isNew(createdAt: string) {
-  const diff = Date.now() - new Date(createdAt).getTime();
+function isNew(approvedAt: string | null, createdAt: string) {
+  // Prefer approved_at — a teacher just becoming discoverable is what learners should see as "new".
+  // Fall back to created_at for rows missing approved_at (legacy data).
+  const reference = approvedAt ?? createdAt;
+  const diff = Date.now() - new Date(reference).getTime();
   return diff < 14 * 24 * 60 * 60 * 1000;
 }
 
@@ -145,7 +148,7 @@ export function TeacherCard({
         )}
 
         {/* NEW badge */}
-        {isNew(teacher.created_at) && (
+        {isNew(teacher.approved_at, teacher.created_at) && (
           <div className="absolute top-2.5 left-2.5 z-10">
             <span className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-accent text-white rounded-full shadow-lg">
               {t("teachers.new")}

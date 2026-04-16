@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
   Calendar, Clock, User, Video, X, Star, FileText,
   Loader2, BookOpen, Heart, History, ChevronDown, ChevronUp,
-  ClipboardList, BarChart3,
+  ClipboardList, BarChart3, Search, ArrowRight,
 } from "lucide-react";
 import { TeacherCard } from "@/components/teachers/teacher-card";
 import type { BookingStatus, TeacherWithProfile } from "@/types/database";
@@ -50,9 +50,26 @@ const STATUS_LABELS: Record<BookingStatus, string> = {
   cancelled: "Cancelled", no_show: "No Show",
 };
 
+const VALID_TABS: readonly Tab[] = ["upcoming", "history", "favorites"] as const;
+
 export function DashboardClient({ bookings, favoriteTeachers, userId, stats }: DashboardClientProps) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("upcoming");
+  const searchParams = useSearchParams();
+  const initialTab = ((): Tab => {
+    const t = searchParams.get("tab");
+    return (VALID_TABS as readonly string[]).includes(t ?? "") ? (t as Tab) : "upcoming";
+  })();
+  const [tab, setTab] = useState<Tab>(initialTab);
+
+  // Sync tab to URL without page reload
+  useEffect(() => {
+    const current = searchParams.get("tab");
+    if (current !== tab) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", tab);
+      router.replace(`/dashboard?${params.toString()}`, { scroll: false });
+    }
+  }, [tab, router, searchParams]);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -101,8 +118,63 @@ export function DashboardClient({ bookings, favoriteTeachers, userId, stats }: D
     { id: "favorites", label: "Favorites", icon: Heart, count: favoriteTeachers.length },
   ];
 
+  const hasUpcoming = upcoming.length > 0;
+  const nextUpcoming = hasUpcoming ? upcoming[upcoming.length - 1] : null; // earliest (sorted desc)
+  const nextOther = nextUpcoming ? getOther(nextUpcoming) : null;
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      {/* Hero: Next lesson if any, otherwise Find-a-teacher CTA */}
+      {hasUpcoming && nextUpcoming && nextOther ? (
+        <Link
+          href={isJoinable(nextUpcoming) ? `/room/${nextUpcoming.id}` : `/dashboard?tab=upcoming`}
+          className={cn(
+            "block rounded-2xl border p-4 transition-colors",
+            isJoinable(nextUpcoming)
+              ? "bg-accent/10 border-accent/30 hover:bg-accent/15"
+              : "bg-bg-secondary border-border hover:bg-bg-tertiary"
+          )}
+        >
+          <div className="flex items-center gap-3">
+            {nextOther.avatar_url ? (
+              <Image src={nextOther.avatar_url} alt={nextOther.display_name} width={44} height={44} className="w-11 h-11 rounded-xl object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-accent to-orange-400 flex items-center justify-center text-white font-bold flex-shrink-0">
+                {(nextOther.display_name ?? "?")[0].toUpperCase()}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-text-primary truncate">
+                Next: {nextOther.display_name}
+              </p>
+              <div className="flex items-center gap-3 text-xs text-text-muted mt-0.5">
+                <span className="flex items-center gap-1"><Calendar size={12} />{new Date(nextUpcoming.scheduled_start_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                <span className="flex items-center gap-1"><Clock size={12} />{new Date(nextUpcoming.scheduled_start_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent text-white text-sm font-semibold flex-shrink-0">
+              {isJoinable(nextUpcoming) ? <><Video size={14} />Join</> : <>View<ArrowRight size={14} /></>}
+            </div>
+          </div>
+        </Link>
+      ) : (
+        <Link
+          href="/teachers"
+          className="block rounded-2xl p-6 bg-gradient-to-br from-accent to-orange-400 text-white shadow-lg hover:shadow-xl transition-shadow"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+              <Search size={22} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-bold leading-tight">Find your perfect teacher</p>
+              <p className="text-sm text-white/85 mt-0.5">Book your first 30-min lesson today</p>
+            </div>
+            <ArrowRight size={20} className="flex-shrink-0" />
+          </div>
+        </Link>
+      )}
+
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-3">
         {[

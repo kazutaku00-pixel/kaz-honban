@@ -13,10 +13,12 @@ import {
   Target,
   Languages,
   Camera,
+  LifeBuoy,
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { supportMailto, SUPPORT_EMAIL } from "@/lib/support";
 import { LEVELS, LANGUAGES, LEARNING_GOALS } from "@/lib/validations";
 import type { UserRole, JapaneseLevel } from "@/types/database";
 import Link from "next/link";
@@ -447,6 +449,15 @@ export function SettingsClient({
         {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
         Save Changes
       </button>
+
+      {/* Help */}
+      <a
+        href={supportMailto()}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/5 text-text-secondary font-medium text-sm hover:bg-white/10 transition"
+      >
+        <LifeBuoy size={18} />
+        Need help? {SUPPORT_EMAIL}
+      </a>
 
       {/* Sign Out */}
       <button

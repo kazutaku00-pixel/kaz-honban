@@ -52,6 +52,7 @@ export function RoomChat({ bookingId, userId, otherName, isTeacher }: RoomChatPr
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = useMemo(() => createClient(), []);
@@ -92,10 +93,19 @@ export function RoomChat({ bookingId, userId, otherName, isTeacher }: RoomChatPr
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) return;
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setSendError("Please select an image file.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setSendError("Image must be under 5 MB.");
+      return;
+    }
+    setSendError(null);
     setPendingFile(file);
     setPreviewUrl(URL.createObjectURL(file));
-    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   function clearPending() {
@@ -107,28 +117,44 @@ export function RoomChat({ bookingId, userId, otherName, isTeacher }: RoomChatPr
   async function handleSend() {
     if (!text.trim() && !pendingFile) return;
     setSending(true);
+    setSendError(null);
     let imageUrl: string | null = null;
     try {
       if (pendingFile) {
         setUploading(true);
-        const ext = pendingFile.name.split(".").pop() ?? "jpg";
-        const path = `chat/${bookingId}/${Date.now()}.${ext}`;
+        const ext = (pendingFile.name.split(".").pop() ?? "jpg").toLowerCase();
+        const path = `chat/${bookingId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error: uploadError } = await supabase.storage
           .from("chat-images")
-          .upload(path, pendingFile, { upsert: false });
-        if (!uploadError) {
-          const { data: urlData } = supabase.storage.from("chat-images").getPublicUrl(path);
-          imageUrl = urlData.publicUrl;
-        }
+          .upload(path, pendingFile, { upsert: false, contentType: pendingFile.type });
         setUploading(false);
+        if (uploadError) {
+          setSendError(
+            uploadError.message?.includes("Bucket not found")
+              ? "Image upload is not configured yet. Try text."
+              : "Image upload failed. Try again or send as text."
+          );
+          return;
+        }
+        const { data: urlData } = supabase.storage.from("chat-images").getPublicUrl(path);
+        imageUrl = urlData.publicUrl;
       }
-      await supabase.from("messages").insert({
+      const { error: insertError } = await supabase.from("messages").insert({
         booking_id: bookingId, sender_id: userId,
         body: text.trim() || "", image_url: imageUrl,
       } as never);
+      if (insertError) {
+        setSendError("Failed to send message. Please try again.");
+        return;
+      }
       setText("");
       clearPending();
-    } catch { /* silent */ } finally { setSending(false); }
+    } catch {
+      setSendError("Something went wrong. Check your connection and try again.");
+    } finally {
+      setSending(false);
+      setUploading(false);
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -224,6 +250,20 @@ export function RoomChat({ bookingId, userId, otherName, isTeacher }: RoomChatPr
           <div key={msg.id}>{renderMessageContent(msg)}</div>
         ))}
       </div>
+
+      {/* Error banner */}
+      {sendError && (
+        <div className="mx-3 mb-2 rounded-lg bg-red-500/10 border border-red-500/30 px-3 py-2 text-xs text-red-400 flex items-start gap-2">
+          <span className="flex-1">{sendError}</span>
+          <button
+            onClick={() => setSendError(null)}
+            className="text-red-400/70 hover:text-red-300 shrink-0"
+            aria-label="Dismiss"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
 
       {/* Image preview */}
       {previewUrl && (

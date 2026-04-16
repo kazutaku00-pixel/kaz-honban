@@ -18,8 +18,6 @@ export default async function BookingConfirmPage({ searchParams }: PageProps) {
     redirect("/");
   }
 
-  const durationMinutes = 30; // Lessons are fixed at 30 min
-
   const supabase = await createServerSupabaseClient();
 
   const {
@@ -67,7 +65,6 @@ export default async function BookingConfirmPage({ searchParams }: PageProps) {
       teacher={teacherUser as Profile}
       teacherProfile={teacherProfile as TeacherProfile}
       slot={slot as AvailabilitySlot}
-      durationMinutes={durationMinutes}
       learnerId={user.id}
     />
   );

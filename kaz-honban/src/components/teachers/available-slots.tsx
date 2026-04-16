@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { AvailabilitySlot } from "@/types/database";
+import { MIN_LEAD_MINUTES } from "@/lib/booking-constants";
 
 interface AvailableSlotsProps {
   teacherId: string;
@@ -15,7 +16,6 @@ interface AvailableSlotsProps {
 const SLOT_RANGE_DAYS = 14;
 const VISIBLE_DAYS = 5;
 const SLOTS_PER_DAY_COLLAPSED = 4;
-const MIN_LEAD_MINUTES = 60;
 
 function getNextDays(): Date[] {
   const days: Date[] = [];
@@ -122,9 +122,55 @@ export function AvailableSlots({ teacherId, teacherTimezone }: AvailableSlotsPro
 
       setSlots(bookable);
       setLoading(false);
+
+      // Auto-scroll day window to the first available day
+      if (bookable.length > 0) {
+        const firstSlotTime = new Date(bookable[0].start_at).getTime();
+        const firstAvailableDayIdx = allDays.findIndex((d) => {
+          const dayStart = d.getTime();
+          const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+          return firstSlotTime >= dayStart && firstSlotTime < dayEnd;
+        });
+        if (firstAvailableDayIdx > 0) {
+          const windowStart = Math.min(
+            firstAvailableDayIdx,
+            SLOT_RANGE_DAYS - VISIBLE_DAYS
+          );
+          setDayOffset(windowStart);
+        }
+      }
     }
     fetchSlots();
   }, [teacherId, allDays]);
+
+  const nextSlotId = slots[0]?.id;
+
+  // Is today (first day in the list) empty? If so we want to show a helpful hint.
+  const todayKey = allDays[0]?.getTime();
+  const todaySlots = slots.filter((s) => {
+    const d = new Date(s.start_at).getTime();
+    return d >= todayKey && d < todayKey + 24 * 60 * 60 * 1000;
+  });
+  const todayEmpty = !loading && todaySlots.length === 0 && slots.length > 0;
+  const firstAvailableSlot = slots[0];
+  const firstAvailableTime = firstAvailableSlot
+    ? (() => {
+        const start = new Date(firstAvailableSlot.start_at);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        const slotDay = new Date(start);
+        slotDay.setHours(0, 0, 0, 0);
+        const dayLabel =
+          slotDay.getTime() === today.getTime()
+            ? "today"
+            : slotDay.getTime() === tomorrow.getTime()
+              ? "tomorrow"
+              : start.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+        return `${dayLabel} at ${formatTime(firstAvailableSlot.start_at, userTz)}`;
+      })()
+    : null;
 
   // Visible days window
   const visibleDays = allDays.slice(dayOffset, dayOffset + VISIBLE_DAYS);
@@ -183,7 +229,15 @@ export function AvailableSlots({ teacherId, teacherTimezone }: AvailableSlotsPro
       </div>
 
       {/* Duration is fixed at 30 min */}
-      <p className="text-xs text-text-muted mb-5">All lessons are 30 minutes.</p>
+      <p className="text-xs text-text-muted mb-3">All lessons are 30 minutes.</p>
+
+      {/* Today empty hint */}
+      {todayEmpty && firstAvailableTime && (
+        <div className="mb-5 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2.5 text-xs text-accent flex items-center gap-2">
+          <span className="font-semibold">No slots left today.</span>
+          <span className="text-accent/90">Next available: {firstAvailableTime}.</span>
+        </div>
+      )}
 
       {/* Cambly-style multi-column day view */}
       {loading ? (
@@ -258,36 +312,45 @@ export function AvailableSlots({ teacherId, teacherTimezone }: AvailableSlotsPro
                   {/* Slots */}
                   <div className="space-y-1.5">
                     {daySlots.length === 0 ? (
-                      <p className="text-center text-text-muted text-xs py-3">
-                        - -
+                      <p className="text-center text-text-muted/70 text-[10px] py-3 leading-tight">
+                        No slots
                       </p>
                     ) : (
                       <>
-                        {visibleSlots.map((slot) => (
-                          <button
-                            key={slot.id}
-                            type="button"
-                            onClick={() => handleSlotClick(slot)}
-                            title={
-                              showDualTimezone
-                                ? `Teacher's time: ${formatTime(slot.start_at, teacherTimezone!)} ${formatTimezoneShort(teacherTimezone!)}`
-                                : undefined
-                            }
-                            className={cn(
-                              "w-full py-2 px-1 rounded-lg text-xs font-medium transition-all",
-                              "bg-bg-tertiary text-text-secondary border border-border",
-                              "hover:border-accent/50 hover:text-accent hover:bg-accent-subtle",
-                              showDualTimezone && "leading-tight"
-                            )}
-                          >
-                            <div>{formatTime(slot.start_at, userTz)}</div>
-                            {showDualTimezone && (
-                              <div className="text-[9px] text-text-muted font-normal mt-0.5">
-                                {formatTime(slot.start_at, teacherTimezone!)} {formatTimezoneShort(teacherTimezone!)}
-                              </div>
-                            )}
-                          </button>
-                        ))}
+                        {visibleSlots.map((slot) => {
+                          const isNext = slot.id === nextSlotId;
+                          return (
+                            <button
+                              key={slot.id}
+                              type="button"
+                              onClick={() => handleSlotClick(slot)}
+                              title={
+                                showDualTimezone
+                                  ? `Teacher's time: ${formatTime(slot.start_at, teacherTimezone!)} ${formatTimezoneShort(teacherTimezone!)}`
+                                  : undefined
+                              }
+                              className={cn(
+                                "relative w-full py-2 px-1 rounded-lg text-xs font-medium transition-all",
+                                isNext
+                                  ? "bg-accent/15 text-accent border border-accent/60 ring-1 ring-accent/40"
+                                  : "bg-bg-tertiary text-text-secondary border border-border hover:border-accent/50 hover:text-accent hover:bg-accent-subtle",
+                                showDualTimezone && "leading-tight"
+                              )}
+                            >
+                              {isNext && (
+                                <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full bg-accent text-[8px] font-bold text-white leading-none uppercase tracking-wider">
+                                  Next
+                                </span>
+                              )}
+                              <div>{formatTime(slot.start_at, userTz)}</div>
+                              {showDualTimezone && (
+                                <div className="text-[9px] text-text-muted font-normal mt-0.5">
+                                  {formatTime(slot.start_at, teacherTimezone!)} {formatTimezoneShort(teacherTimezone!)}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
                         {!isExpanded && hiddenCount > 0 && (
                           <button
                             type="button"

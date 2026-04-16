@@ -23,6 +23,9 @@ export const teacherProfileSchema = z.object({
     .default([30]),
   teaching_style: z.string().optional(),
   certifications: z.string().optional(),
+  university: z.string().max(100).optional(),
+  country_of_origin: z.string().max(60).optional(),
+  years_of_experience: z.number().int().min(0).max(70).optional(),
   intro_video_url: z.string().url().optional().or(z.literal("")),
   trial_enabled: z.boolean().optional(),
   trial_price: z.number().min(0).optional(),
@@ -35,10 +38,13 @@ export const scheduleTemplateSchema = z.object({
   buffer_minutes: z.number().min(0).max(30).default(5),
 });
 
+// All lessons are 30 minutes. Duration is fixed server-side and not
+// accepted from the client — see LESSON_DURATION_MINUTES below.
+export const LESSON_DURATION_MINUTES = 30 as const;
+
 export const bookingSchema = z.object({
   teacher_id: z.string().uuid(),
   slot_id: z.string().uuid(),
-  duration_minutes: z.enum(["30"]).transform(Number),
   learner_note: z.string().max(500).optional(),
 });
 

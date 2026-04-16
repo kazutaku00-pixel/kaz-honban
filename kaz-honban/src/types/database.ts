@@ -35,6 +35,9 @@ export interface TeacherProfile {
   lesson_duration_options: number[];
   teaching_style: string | null;
   certifications: string | null;
+  university: string | null;
+  country_of_origin: string | null;
+  years_of_experience: number | null;
   categories: string[];
   languages: string[];
   levels: string[];

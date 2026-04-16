@@ -1,6 +1,7 @@
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { bookingSchema } from "@/lib/validations";
+import { bookingSchema, LESSON_DURATION_MINUTES } from "@/lib/validations";
+import { MIN_LEAD_MINUTES } from "@/lib/booking-constants";
 import { notifyBookingCreated } from "@/lib/notifications";
 import { sendBookingConfirmation } from "@/lib/email";
 
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { teacher_id, slot_id, duration_minutes, learner_note } = parsed.data;
+    const { teacher_id, slot_id, learner_note } = parsed.data;
 
     const supabase = createServiceRoleClient();
 
@@ -41,8 +42,9 @@ export async function POST(request: NextRequest) {
       p_learner_id: user.id,
       p_teacher_id: teacher_id,
       p_slot_id: slot_id,
-      p_duration_minutes: duration_minutes,
+      p_duration_minutes: LESSON_DURATION_MINUTES,
       p_learner_note: learner_note ?? null,
+      p_min_lead_minutes: MIN_LEAD_MINUTES,
     });
 
     if (error) {
@@ -85,7 +87,7 @@ export async function POST(request: NextRequest) {
         toName: teacherRow.display_name,
         counterpartName: learnerName,
         scheduledStartAt: result.scheduled_start_at,
-        durationMinutes: duration_minutes,
+        durationMinutes: LESSON_DURATION_MINUTES,
         bookingId: result.booking_id,
         timezone: teacherRow.timezone,
         role: "teacher",
@@ -97,7 +99,7 @@ export async function POST(request: NextRequest) {
         toName: learnerRow.display_name,
         counterpartName: teacherRow?.display_name ?? "Your teacher",
         scheduledStartAt: result.scheduled_start_at,
-        durationMinutes: duration_minutes,
+        durationMinutes: LESSON_DURATION_MINUTES,
         bookingId: result.booking_id,
         timezone: learnerRow.timezone,
         role: "learner",

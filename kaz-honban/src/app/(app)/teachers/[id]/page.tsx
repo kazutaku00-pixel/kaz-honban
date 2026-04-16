@@ -2,7 +2,7 @@ import Image from "next/image";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Star, Globe, BookOpen, BadgeCheck, Play } from "lucide-react";
+import { Star, Globe, BookOpen, BadgeCheck, Play, GraduationCap, MapPin, Clock } from "lucide-react";
 import { CATEGORIES, LANGUAGES, LEVELS, REVIEW_TAGS } from "@/lib/validations";
 import { AvailableSlots } from "@/components/teachers/available-slots";
 import { TeacherDetailTabs } from "@/components/teachers/teacher-detail-tabs";
@@ -118,6 +118,58 @@ export default async function TeacherDetailPage({ params }: PageProps) {
           <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">
             {t.bio}
           </p>
+        </div>
+      )}
+
+      {/* Background facts (university / from / experience) */}
+      {(t.university || t.country_of_origin || t.years_of_experience != null) && (
+        <div className="bg-bg-secondary rounded-2xl border border-border p-5">
+          <h3 className="text-sm font-semibold text-text-primary mb-3">
+            <T k="detail.background" />
+          </h3>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {t.university && (
+              <div className="flex items-start gap-2">
+                <GraduationCap size={16} className="text-accent mt-0.5 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[11px] uppercase tracking-wider text-text-muted">
+                    <T k="detail.university" />
+                  </p>
+                  <p className="text-sm text-text-primary font-medium break-words">
+                    {t.university}
+                  </p>
+                </div>
+              </div>
+            )}
+            {t.country_of_origin && (
+              <div className="flex items-start gap-2">
+                <MapPin size={16} className="text-emerald-400 mt-0.5 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[11px] uppercase tracking-wider text-text-muted">
+                    <T k="detail.from" />
+                  </p>
+                  <p className="text-sm text-text-primary font-medium break-words">
+                    {t.country_of_origin}
+                  </p>
+                </div>
+              </div>
+            )}
+            {t.years_of_experience != null && (
+              <div className="flex items-start gap-2">
+                <Clock size={16} className="text-gold mt-0.5 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[11px] uppercase tracking-wider text-text-muted">
+                    <T k="detail.experience" />
+                  </p>
+                  <p className="text-sm text-text-primary font-medium">
+                    {t.years_of_experience}
+                    {" "}
+                    <T k="detail.years" />
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

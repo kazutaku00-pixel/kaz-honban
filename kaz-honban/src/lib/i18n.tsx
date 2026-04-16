@@ -80,6 +80,11 @@ const translations: Record<Locale, Record<string, string>> = {
     "profile.additional": "Additional",
     "profile.certifications": "Certifications",
     "profile.certPlaceholder": "JLPT N1, Teaching Certificate...",
+    "profile.university": "University",
+    "profile.universityPlaceholder": "e.g. Waseda University",
+    "profile.countryOfOrigin": "From",
+    "profile.countryPlaceholder": "e.g. Tokyo, Japan",
+    "profile.yearsOfExperience": "Years of teaching experience",
     "profile.teachingStyle": "Teaching Style",
     "profile.stylePlaceholder": "Describe your teaching approach...",
     "profile.introVideo": "Introduction Video",
@@ -265,6 +270,11 @@ const translations: Record<Locale, Record<string, string>> = {
     "detail.avgRating": "Avg rating",
     "detail.reviewCount": "Reviews",
     "detail.totalLessons": "Total lessons",
+    "detail.background": "Background",
+    "detail.university": "University",
+    "detail.from": "From",
+    "detail.experience": "Experience",
+    "detail.years": "years",
 
     // Room
     "room.loading": "Loading room…",
@@ -284,6 +294,10 @@ const translations: Record<Locale, Record<string, string>> = {
     "room.chat": "Chat",
     "room.leave": "Leave",
     "room.closeChat": "Tap to close chat",
+    "room.leaveConfirmTitle": "Leave the lesson?",
+    "room.leaveConfirmBody": "You'll be signed out of this video call. The other participant will stay online.",
+    "room.leaveConfirmAction": "Yes, leave",
+    "room.leaveConfirmCancel": "Stay",
   },
   ja: {
     // App Shell
@@ -354,6 +368,11 @@ const translations: Record<Locale, Record<string, string>> = {
     "profile.additional": "その他",
     "profile.certifications": "資格・証明書",
     "profile.certPlaceholder": "JLPT N1、教員免許...",
+    "profile.university": "出身大学",
+    "profile.universityPlaceholder": "例：早稲田大学",
+    "profile.countryOfOrigin": "出身",
+    "profile.countryPlaceholder": "例：東京",
+    "profile.yearsOfExperience": "指導経験年数",
     "profile.teachingStyle": "指導スタイル",
     "profile.stylePlaceholder": "あなたの指導方法を説明してください...",
     "profile.introVideo": "紹介動画",
@@ -539,6 +558,11 @@ const translations: Record<Locale, Record<string, string>> = {
     "detail.avgRating": "平均評価",
     "detail.reviewCount": "レビュー数",
     "detail.totalLessons": "総レッスン数",
+    "detail.background": "講師プロフィール",
+    "detail.university": "出身大学",
+    "detail.from": "出身",
+    "detail.experience": "指導経験",
+    "detail.years": "年",
 
     // Room
     "room.loading": "ルームを読み込み中…",
@@ -558,6 +582,10 @@ const translations: Record<Locale, Record<string, string>> = {
     "room.chat": "チャット",
     "room.leave": "退出",
     "room.closeChat": "タップしてチャットを閉じる",
+    "room.leaveConfirmTitle": "レッスンから退出しますか？",
+    "room.leaveConfirmBody": "ビデオ通話から退出します。もう一方の参加者はそのまま続けられます。",
+    "room.leaveConfirmAction": "はい、退出する",
+    "room.leaveConfirmCancel": "戻る",
   },
 };
 

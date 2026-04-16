@@ -17,6 +17,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { LESSON_DURATION_MINUTES } from "@/lib/validations";
 import type { Profile, TeacherProfile, AvailabilitySlot } from "@/types/database";
 
 interface OverlappingBooking {
@@ -31,7 +32,6 @@ interface BookingConfirmClientProps {
   teacher: Profile;
   teacherProfile: TeacherProfile;
   slot: AvailabilitySlot;
-  durationMinutes: number;
   learnerId: string;
 }
 
@@ -39,9 +39,9 @@ export function BookingConfirmClient({
   teacher,
   teacherProfile,
   slot,
-  durationMinutes,
   learnerId,
 }: BookingConfirmClientProps) {
+  const durationMinutes = LESSON_DURATION_MINUTES;
   const router = useRouter();
   const [learnerNote, setLearnerNote] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -128,7 +128,6 @@ export function BookingConfirmClient({
         body: JSON.stringify({
           teacher_id: teacher.id,
           slot_id: slot.id,
-          duration_minutes: String(durationMinutes),
           learner_note: learnerNote || undefined,
         }),
       });

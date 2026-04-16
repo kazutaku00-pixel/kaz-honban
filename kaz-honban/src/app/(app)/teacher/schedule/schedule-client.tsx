@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import type { SlotStatus } from "@/types/database";
 
 const DAY_KEYS = ["day.sun", "day.mon", "day.tue", "day.wed", "day.thu", "day.fri", "day.sat"] as const;
@@ -53,6 +54,9 @@ export function ScheduleClient({ templates: initialTemplates, slots: initialSlot
   const [generating, setGenerating] = useState(false);
   const [togglingSlot, setTogglingSlot] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Warn before unload while an add-template form is open with unsaved input
+  useUnsavedChanges(addingDay !== null);
 
   async function addTemplate(dayOfWeek: number) {
     setSaving(true);
