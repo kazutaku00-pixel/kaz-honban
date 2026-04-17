@@ -104,7 +104,7 @@ export interface Booking {
   id: string;
   learner_id: string;
   teacher_id: string;
-  slot_id: string;
+  slot_id: string | null;
   scheduled_start_at: string;
   scheduled_end_at: string;
   duration_minutes: number;

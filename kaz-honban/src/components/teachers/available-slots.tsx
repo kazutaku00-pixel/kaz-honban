@@ -104,15 +104,38 @@ export function AvailableSlots({ teacherId, teacherTimezone }: AvailableSlotsPro
 
       const raw = (data ?? []) as unknown as AvailabilitySlot[];
 
+      // Defensive: historical data on production has duplicate availability_slots
+      // rows at the same start_at for a given teacher (from older 15-min
+      // generation runs colliding with the 30-min version). Collapse to one row
+      // per start_at so the UI never shows "12:00 PM" eleven times.
+      const bySlot = new Map<string, AvailabilitySlot>();
+      for (const s of raw) {
+        // Key by start_at + end_at so genuinely distinct slots (shouldn't
+        // happen for one teacher, but just in case) still render separately.
+        const key = `${s.start_at}|${s.end_at}`;
+        if (!bySlot.has(key)) bySlot.set(key, s);
+      }
+      // Also collapse slots whose display minute is identical within the same
+      // day — catches near-duplicates that differ only by seconds.
+      const byDisplay = new Map<string, AvailabilitySlot>();
+      for (const s of bySlot.values()) {
+        const d = new Date(s.start_at);
+        const dayKey = d.toDateString();
+        const minuteKey = `${dayKey}|${d.getHours()}:${d.getMinutes()}`;
+        if (!byDisplay.has(minuteKey)) byDisplay.set(minuteKey, s);
+      }
+      const deduped = Array.from(byDisplay.values())
+        .sort((a, b) => a.start_at.localeCompare(b.start_at));
+
       // Always book a full 30-min lesson: if a slot is shorter than 30 min
       // (legacy 15-min slots), it must chain with the next open slot.
-      const openStartTimes = new Set(raw.map((s) => s.start_at));
+      const openStartTimes = new Set(deduped.map((s) => s.start_at));
       const lessonEndsAt = (s: AvailabilitySlot) =>
         new Date(new Date(s.start_at).getTime() + 30 * 60 * 1000).toISOString();
 
       const leadCutoff = Date.now() + MIN_LEAD_MINUTES * 60 * 1000;
 
-      const bookable = raw.filter((s) => {
+      const bookable = deduped.filter((s) => {
         if (new Date(s.start_at).getTime() < leadCutoff) return false;
         // Slot already covers 30 min on its own
         if (new Date(s.end_at).getTime() >= new Date(lessonEndsAt(s)).getTime()) return true;
