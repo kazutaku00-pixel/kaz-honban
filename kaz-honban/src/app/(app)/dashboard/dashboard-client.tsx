@@ -61,15 +61,15 @@ export function DashboardClient({ bookings, favoriteTeachers, userId, stats }: D
   })();
   const [tab, setTab] = useState<Tab>(initialTab);
 
-  // Sync tab to URL without page reload
+  // Sync tab to URL without page reload. `searchParams` is a new object on
+  // every render, so depending on it here would loop — read it via ref-like
+  // lazy access and only run when `tab` actually changes.
   useEffect(() => {
-    const current = searchParams.get("tab");
-    if (current !== tab) {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("tab", tab);
-      router.replace(`/dashboard?${params.toString()}`, { scroll: false });
-    }
-  }, [tab, router, searchParams]);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tab") === tab) return;
+    params.set("tab", tab);
+    router.replace(`/dashboard?${params.toString()}`, { scroll: false });
+  }, [tab, router]);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

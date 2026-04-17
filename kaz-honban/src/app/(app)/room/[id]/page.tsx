@@ -61,6 +61,16 @@ export default function VideoRoomPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+
+  // Escape closes the leave-confirm modal.
+  useEffect(() => {
+    if (!leaveConfirmOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setLeaveConfirmOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [leaveConfirmOpen]);
   const [learnerContext, setLearnerContext] = useState<{
     learner_note: string | null;
     learner_level: string | null;

@@ -70,6 +70,7 @@ export function NotificationBell() {
 
     return () => {
       cancelled = true;
+      channel.unsubscribe();
       supabase.removeChannel(channel);
     };
   }, [user, supabase]);

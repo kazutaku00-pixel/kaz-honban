@@ -48,9 +48,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
+      // Log full Postgres detail server-side; return a generic message so we
+      // don't leak table names or constraint identifiers to the client.
       console.error("create_booking_atomic rpc error:", error);
       return NextResponse.json(
-        { error: error.message || "Failed to create booking" },
+        { error: "Failed to create booking. Please try again." },
         { status: 500 }
       );
     }

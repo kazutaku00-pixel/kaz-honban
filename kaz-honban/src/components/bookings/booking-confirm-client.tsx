@@ -96,6 +96,16 @@ export function BookingConfirmClient({
 
   useUnsavedChanges(!isConfirmed);
 
+  // Escape key closes the overlap modal so users aren't trapped.
+  useEffect(() => {
+    if (!showOverlapModal) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setShowOverlapModal(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [showOverlapModal]);
+
   // Check for overlapping bookings on mount
   useEffect(() => {
     async function checkOverlap() {

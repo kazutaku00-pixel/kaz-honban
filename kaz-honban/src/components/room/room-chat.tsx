@@ -84,7 +84,12 @@ export function RoomChat({ bookingId, userId, otherName, isTeacher }: RoomChatPr
         }
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      // unsubscribe first so no late INSERT events fire; then remove the
+      // channel from the client so it can be garbage-collected.
+      channel.unsubscribe();
+      supabase.removeChannel(channel);
+    };
   }, [bookingId, supabase]);
 
   useEffect(() => {

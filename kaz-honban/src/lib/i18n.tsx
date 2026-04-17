@@ -611,7 +611,16 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   };
 
   const t = (key: string): string => {
-    return translations[locale][key] ?? translations.en[key] ?? key;
+    const value = translations[locale][key] ?? translations.en[key];
+    if (value === undefined) {
+      // Surface missing keys loudly in dev so we catch them before shipping.
+      // Users still see the raw key, which is better than an empty string.
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(`[i18n] Missing translation key: "${key}" (locale=${locale})`);
+      }
+      return key;
+    }
+    return value;
   };
 
   return (

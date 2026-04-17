@@ -12,6 +12,12 @@ function esc(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
+// Subjects go into an email header, so newlines would let a malicious display
+// name inject additional headers (CC, BCC…). Strip CR/LF and clamp length.
+function sanitizeSubject(s: string): string {
+  return s.replace(/[\r\n\t]/g, " ").trim().slice(0, 255);
+}
+
 type SendEmailParams = {
   to: string;
   subject: string;
@@ -113,10 +119,11 @@ export async function sendBookingConfirmation(params: {
 
   return sendEmail({
     to: toEmail,
-    subject:
+    subject: sanitizeSubject(
       role === "teacher"
         ? `New booking with ${counterpartName}`
-        : `Lesson confirmed with ${counterpartName}`,
+        : `Lesson confirmed with ${counterpartName}`
+    ),
     html: baseLayout(body, "View booking", link),
   });
 }
@@ -141,7 +148,7 @@ export async function sendLessonReminder(params: {
 
   return sendEmail({
     to: toEmail,
-    subject: `Lesson with ${counterpartName} at ${when}`,
+    subject: sanitizeSubject(`Lesson with ${counterpartName} at ${when}`),
     html: baseLayout(body, "Join lesson room", link),
   });
 }
@@ -157,7 +164,7 @@ export async function sendTeacherInvite(params: {
     <p style="color:#6b7280;font-size:13px">Invite code: <code>${esc(params.inviteCode)}</code></p>`;
   return sendEmail({
     to: params.toEmail,
-    subject: "You're invited to teach on NihonGo",
+    subject: sanitizeSubject("You're invited to teach on NihonGo"),
     html: baseLayout(body, "Accept invitation", link),
   });
 }
