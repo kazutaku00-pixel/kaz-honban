@@ -1,7 +1,33 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { verifyAdmin } from "@/lib/admin";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { notifyBookingCancelled } from "@/lib/notifications";
+
+const postSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("grant_role"),
+    userId: z.string().uuid(),
+    role: z.enum(["learner", "teacher", "admin"]),
+  }),
+  z.object({
+    action: z.literal("revoke_role"),
+    userId: z.string().uuid(),
+    role: z.enum(["learner", "teacher", "admin"]),
+  }),
+  z.object({ action: z.literal("suspend_teacher"), userId: z.string().uuid() }),
+  z.object({ action: z.literal("reactivate_teacher"), userId: z.string().uuid() }),
+]);
+
+const putSchema = z.object({
+  bookingId: z.string().uuid(),
+  status: z.enum(["confirmed", "in_session", "completed", "cancelled", "no_show"]),
+});
+
+const patchSchema = z.object({
+  userId: z.string().uuid(),
+  isActive: z.boolean(),
+});
 
 // GET — List all users with roles
 export async function GET() {
@@ -31,15 +57,15 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await request.json();
-  const { userId, isActive } = body;
-
-  if (!userId || typeof isActive !== "boolean") {
+  const body = await request.json().catch(() => null);
+  const parsed = patchSchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
       { error: "userId and isActive are required" },
       { status: 400 }
     );
   }
+  const { userId, isActive } = parsed.data;
 
   const admin = createServiceRoleClient();
 
@@ -62,16 +88,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await request.json();
-  const { action } = body;
+  const body = await request.json().catch(() => null);
+  const parsed = postSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+  }
+  const payload = parsed.data;
+  const action = payload.action;
   const admin = createServiceRoleClient();
 
   // Grant role
   if (action === "grant_role") {
-    const { userId, role } = body;
-    if (!userId || !["learner", "teacher", "admin"].includes(role)) {
-      return NextResponse.json({ error: "userId and valid role required" }, { status: 400 });
-    }
+    const { userId, role } = payload;
 
     const { error } = await admin
       .from("user_roles")
@@ -104,10 +132,7 @@ export async function POST(request: Request) {
 
   // Revoke role
   if (action === "revoke_role") {
-    const { userId, role } = body;
-    if (!userId || !["learner", "teacher", "admin"].includes(role)) {
-      return NextResponse.json({ error: "userId and valid role required" }, { status: 400 });
-    }
+    const { userId, role } = payload;
 
     // Prevent revoking own admin role
     if (userId === result.userId && role === "admin") {
@@ -137,10 +162,7 @@ export async function POST(request: Request) {
 
   // Suspend teacher
   if (action === "suspend_teacher") {
-    const { userId } = body;
-    if (!userId) {
-      return NextResponse.json({ error: "userId required" }, { status: 400 });
-    }
+    const { userId } = payload;
 
     await admin
       .from("teacher_profiles")
@@ -192,10 +214,7 @@ export async function POST(request: Request) {
 
   // Reactivate teacher
   if (action === "reactivate_teacher") {
-    const { userId } = body;
-    if (!userId) {
-      return NextResponse.json({ error: "userId required" }, { status: 400 });
-    }
+    const { userId } = payload;
 
     await admin
       .from("teacher_profiles")
@@ -215,16 +234,15 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await request.json();
-  const { bookingId, status } = body;
-
-  const validStatuses = ["confirmed", "in_session", "completed", "cancelled", "no_show"];
-  if (!bookingId || !validStatuses.includes(status)) {
+  const body = await request.json().catch(() => null);
+  const parsed = putSchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
       { error: "bookingId and valid status are required" },
       { status: 400 }
     );
   }
+  const { bookingId, status } = parsed.data;
 
   const admin = createServiceRoleClient();
 

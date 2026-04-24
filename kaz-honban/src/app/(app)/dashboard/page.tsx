@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { DashboardClient } from "./dashboard-client";
-import type { TeacherWithProfile, BookingStatus } from "@/types/database";
+import type { BookingStatus } from "@/types/database";
 
 interface RawBooking {
   id: string;
@@ -44,24 +44,6 @@ export default async function DashboardPage() {
 
   const bookings = (bookingsRaw ?? []) as unknown as RawBooking[];
 
-  // Fetch favorites
-  const { data: favoritesRaw } = await supabase
-    .from("favorites")
-    .select("teacher_id")
-    .eq("learner_id", user.id);
-
-  const favoriteIds = (favoritesRaw ?? []).map((f) => (f as { teacher_id: string }).teacher_id);
-
-  let favoriteTeachers: TeacherWithProfile[] = [];
-  if (favoriteIds.length > 0) {
-    const { data: teachersRaw } = await supabase
-      .from("teacher_profiles")
-      .select("*, profile:profiles!user_id(*)")
-      .in("user_id", favoriteIds)
-      .eq("approval_status", "approved");
-    favoriteTeachers = (teachersRaw ?? []) as unknown as TeacherWithProfile[];
-  }
-
   // Stats
   const completedCount = bookings.filter((b) => b.status === "completed").length;
   const upcomingCount = bookings.filter(
@@ -73,9 +55,8 @@ export default async function DashboardPage() {
   return (
     <DashboardClient
       bookings={bookings}
-      favoriteTeachers={favoriteTeachers}
       userId={user.id}
-      stats={{ completedLessons: completedCount, upcomingLessons: upcomingCount, favorites: favoriteIds.length }}
+      stats={{ completedLessons: completedCount, upcomingLessons: upcomingCount }}
     />
   );
 }

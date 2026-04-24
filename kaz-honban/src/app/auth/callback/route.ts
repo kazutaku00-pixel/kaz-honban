@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { sendNewUserSignupAlert } from "@/lib/email";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const role = searchParams.get("role"); // "learner" | "teacher"
-  const invite = searchParams.get("invite");
+  let role = searchParams.get("role"); // "learner" | "teacher"
+  let invite = searchParams.get("invite");
   const redirectParam = searchParams.get("redirect");
   const tabIsolated = process.env.NEXT_PUBLIC_TAB_ISOLATED_AUTH === "true";
 
@@ -41,6 +42,20 @@ export async function GET(request: Request) {
       if (user) {
         const adminDb = createServiceRoleClient();
 
+        // Fall back to intent stored in auth metadata when the URL params
+        // got stripped — e.g. a user clicks the Supabase email-confirmation
+        // link and some OAuth intermediate drops extra query args.
+        const meta = (user.user_metadata ?? {}) as {
+          intended_role?: string;
+          invite_code?: string;
+        };
+        if (!role && (meta.intended_role === "learner" || meta.intended_role === "teacher")) {
+          role = meta.intended_role;
+        }
+        if (!invite && meta.invite_code) {
+          invite = meta.invite_code;
+        }
+
         // Check if user already has a role
         const { data: existingRoles } = await adminDb
           .from("user_roles")
@@ -71,6 +86,21 @@ export async function GET(request: Request) {
               .insert({ user_id: user.id } as never);
             redirectPath = "/teacher/profile";
           }
+
+          // Fire-and-forget admin notification — don't block the signup flow
+          // if Resend is down or misconfigured.
+          const { data: profileRaw } = await adminDb
+            .from("profiles")
+            .select("display_name, email")
+            .eq("id", user.id)
+            .single();
+          const profile = profileRaw as unknown as { display_name: string; email: string | null } | null;
+          sendNewUserSignupAlert({
+            userId: user.id,
+            userName: profile?.display_name ?? user.email ?? "Unknown",
+            userEmail: profile?.email ?? user.email ?? "unknown",
+            role: role as "learner" | "teacher",
+          }).catch((e) => console.error("[signup alert] failed:", e));
         } else if (existingRoles && existingRoles.length > 0) {
           if (redirectParam) {
             redirectPath = redirectParam;

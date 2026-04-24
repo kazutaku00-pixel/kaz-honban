@@ -1,11 +1,11 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
-// Minimal validation: IANA zone names look like "Region/City" or a short alias.
-// Supabase just stores the string — Postgres validates on AT TIME ZONE casts.
+// IANA zone names: "Region/City" style, or a short alias like "UTC".
+// Must start with a letter so raw POSIX offsets like "+09:00" are rejected.
 function isPlausibleTimezone(tz: string): boolean {
   if (!tz || tz.length > 64) return false;
-  return /^[A-Za-z_+\-/0-9]+$/.test(tz);
+  return /^[A-Za-z][A-Za-z0-9_+/\-]*$/.test(tz);
 }
 
 export async function PATCH(request: NextRequest) {

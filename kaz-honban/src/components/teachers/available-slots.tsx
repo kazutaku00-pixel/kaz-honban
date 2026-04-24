@@ -1,16 +1,20 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { AvailabilitySlot } from "@/types/database";
 import { MIN_LEAD_MINUTES } from "@/lib/booking-constants";
+import { BookingConfirmModal } from "@/components/bookings/booking-confirm-modal";
 
 interface AvailableSlotsProps {
   teacherId: string;
   teacherTimezone?: string | null;
+  teacherName: string;
+  teacherAvatar: string | null;
+  teacherHeadline: string | null;
+  hourlyRate: number;
 }
 
 const SLOT_RANGE_DAYS = 14;
@@ -73,12 +77,19 @@ function formatTimezoneShort(tz: string): string {
   }
 }
 
-export function AvailableSlots({ teacherId, teacherTimezone }: AvailableSlotsProps) {
-  const router = useRouter();
+export function AvailableSlots({
+  teacherId,
+  teacherTimezone,
+  teacherName,
+  teacherAvatar,
+  teacherHeadline,
+  hourlyRate,
+}: AvailableSlotsProps) {
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [dayOffset, setDayOffset] = useState(0);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
+  const [modalSlot, setModalSlot] = useState<AvailabilitySlot | null>(null);
   const userTz = useMemo(() => getUserTimezone(), []);
   const showDualTimezone = !!teacherTimezone && teacherTimezone !== userTz;
 
@@ -219,9 +230,7 @@ export function AvailableSlots({ teacherId, teacherTimezone }: AvailableSlotsPro
   }, [slots, allDays]);
 
   const handleSlotClick = (slot: AvailabilitySlot) => {
-    router.push(
-      `/booking/confirm?teacher_id=${teacherId}&slot_id=${slot.id}`
-    );
+    setModalSlot(slot);
   };
 
   const toggleExpand = (dayKey: number) => {
@@ -400,6 +409,19 @@ export function AvailableSlots({ teacherId, teacherTimezone }: AvailableSlotsPro
             })}
           </div>
         </div>
+      )}
+
+      {modalSlot && (
+        <BookingConfirmModal
+          open={!!modalSlot}
+          onClose={() => setModalSlot(null)}
+          teacherId={teacherId}
+          teacherName={teacherName}
+          teacherAvatar={teacherAvatar}
+          teacherHeadline={teacherHeadline}
+          hourlyRate={hourlyRate}
+          slot={modalSlot}
+        />
       )}
     </div>
   );

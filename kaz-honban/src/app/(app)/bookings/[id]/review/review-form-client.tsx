@@ -64,14 +64,34 @@ export function ReviewFormClient({
           tags: selectedTags.length > 0 ? selectedTags : undefined,
         }),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error ?? "Failed to submit review");
+      if (res.ok) {
+        setSubmitted(true);
         return;
       }
-      setSubmitted(true);
+      // Treat "already reviewed" as a soft success — the learner's intent is
+      // satisfied and the existing review stands.
+      if (res.status === 409) {
+        setSubmitted(true);
+        return;
+      }
+      const data = await res.json().catch(() => ({} as { error?: string }));
+      const fallback = (() => {
+        switch (res.status) {
+          case 400:
+            return "This lesson can't be reviewed yet. Please wait until the lesson has ended.";
+          case 401:
+            return "Please sign in again to submit your review.";
+          case 403:
+            return "Only the student from this lesson can leave a review.";
+          case 404:
+            return "We couldn't find this booking. Try refreshing the page.";
+          default:
+            return "Something went wrong. Please try again in a moment.";
+        }
+      })();
+      setError(data.error ?? fallback);
     } catch {
-      setError("Failed to submit review");
+      setError("Couldn't reach the server. Check your connection and try again.");
     } finally {
       setSubmitting(false);
     }

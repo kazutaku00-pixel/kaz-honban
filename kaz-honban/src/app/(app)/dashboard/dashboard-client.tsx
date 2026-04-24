@@ -7,11 +7,10 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
   Calendar, Clock, User, Video, X, Star, FileText,
-  Loader2, BookOpen, Heart, History, ChevronDown, ChevronUp,
+  Loader2, BookOpen, History, ChevronDown, ChevronUp,
   ClipboardList, BarChart3, Search, ArrowRight,
 } from "lucide-react";
-import { TeacherCard } from "@/components/teachers/teacher-card";
-import type { BookingStatus, TeacherWithProfile } from "@/types/database";
+import type { BookingStatus } from "@/types/database";
 
 interface BookingItem {
   id: string;
@@ -31,12 +30,11 @@ interface BookingItem {
 
 interface DashboardClientProps {
   bookings: BookingItem[];
-  favoriteTeachers: TeacherWithProfile[];
   userId: string;
-  stats: { completedLessons: number; upcomingLessons: number; favorites: number };
+  stats: { completedLessons: number; upcomingLessons: number };
 }
 
-type Tab = "upcoming" | "history" | "favorites";
+type Tab = "upcoming" | "history";
 
 const STATUS_STYLES: Record<BookingStatus, string> = {
   confirmed: "bg-blue-500/20 text-blue-400 border-blue-500/30",
@@ -50,9 +48,9 @@ const STATUS_LABELS: Record<BookingStatus, string> = {
   cancelled: "Cancelled", no_show: "No Show",
 };
 
-const VALID_TABS: readonly Tab[] = ["upcoming", "history", "favorites"] as const;
+const VALID_TABS: readonly Tab[] = ["upcoming", "history"] as const;
 
-export function DashboardClient({ bookings, favoriteTeachers, userId, stats }: DashboardClientProps) {
+export function DashboardClient({ bookings, userId, stats }: DashboardClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = ((): Tab => {
@@ -115,7 +113,6 @@ export function DashboardClient({ bookings, favoriteTeachers, userId, stats }: D
   const tabs: { id: Tab; label: string; icon: React.ElementType; count: number }[] = [
     { id: "upcoming", label: "Upcoming", icon: Calendar, count: upcoming.length },
     { id: "history", label: "History", icon: History, count: history.length },
-    { id: "favorites", label: "Favorites", icon: Heart, count: favoriteTeachers.length },
   ];
 
   const hasUpcoming = upcoming.length > 0;
@@ -176,11 +173,10 @@ export function DashboardClient({ bookings, favoriteTeachers, userId, stats }: D
       )}
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         {[
           { label: "Upcoming", value: stats.upcomingLessons, icon: Calendar, color: "text-blue-400" },
           { label: "Completed", value: stats.completedLessons, icon: BarChart3, color: "text-emerald-400" },
-          { label: "Favorites", value: stats.favorites, icon: Heart, color: "text-accent" },
         ].map((s) => (
           <div key={s.label} className="bg-bg-secondary rounded-2xl border border-border p-4 text-center">
             <s.icon size={18} className={cn("mx-auto mb-1", s.color)} />
@@ -367,24 +363,6 @@ export function DashboardClient({ bookings, favoriteTeachers, userId, stats }: D
         )
       )}
 
-      {/* ── Favorites tab ── */}
-      {tab === "favorites" && (
-        favoriteTeachers.length === 0 ? (
-          <div className="text-center py-16 space-y-4">
-            <Heart className="w-10 h-10 text-text-muted mx-auto" />
-            <p className="text-text-muted">No favorites yet</p>
-            <Link href="/teachers" className="inline-block px-6 py-2.5 rounded-xl bg-accent text-white font-medium text-sm hover:bg-accent/90 transition">
-              Browse Teachers
-            </Link>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {favoriteTeachers.map((t, i) => (
-              <TeacherCard key={t.id} teacher={t} index={i} isFavorited={true} />
-            ))}
-          </div>
-        )
-      )}
     </div>
   );
 }

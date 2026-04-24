@@ -41,8 +41,16 @@ export default async function ReviewPage({
   // Verify learner
   if (booking.learner_id !== user.id) redirect("/bookings");
 
-  // Only completed bookings can be reviewed
-  if (booking.status !== "completed") redirect("/bookings");
+  // Allow review once the scheduled end has passed. Don't require status ===
+  // "completed" — there's a gap between a user leaving the Daily call and the
+  // `complete-lessons` cron tick flipping the booking, and during that window
+  // the API accepts the review while the page was rejecting it. Also block
+  // cancelled / no_show since those lessons never ran.
+  const endPassed = new Date(booking.scheduled_end_at).getTime() <= Date.now();
+  const reviewable =
+    booking.status === "completed" ||
+    (endPassed && (booking.status === "in_session" || booking.status === "confirmed"));
+  if (!reviewable) redirect("/bookings");
 
   // Check if already reviewed
   const { data: existingReview } = await supabase

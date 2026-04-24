@@ -153,6 +153,38 @@ export async function sendLessonReminder(params: {
   });
 }
 
+export async function sendNewUserSignupAlert(params: {
+  userEmail: string;
+  userName: string;
+  role: "learner" | "teacher";
+  userId: string;
+}): Promise<boolean> {
+  // Who to notify. Defaults to the support mailbox, but the operator can
+  // override with ADMIN_ALERT_EMAIL if they want signup pings elsewhere.
+  const adminEmail =
+    process.env.ADMIN_ALERT_EMAIL ??
+    process.env.NEXT_PUBLIC_SUPPORT_EMAIL ??
+    null;
+  if (!adminEmail) {
+    console.warn("[email] No ADMIN_ALERT_EMAIL / NEXT_PUBLIC_SUPPORT_EMAIL set — skipping new-user alert");
+    return false;
+  }
+
+  const body = `<p>A new ${params.role} just signed up:</p>
+    <ul style="line-height:1.8">
+      <li><strong>Name:</strong> ${esc(params.userName)}</li>
+      <li><strong>Email:</strong> ${esc(params.userEmail)}</li>
+      <li><strong>Role:</strong> ${params.role}</li>
+      <li style="color:#6b7280"><strong>User ID:</strong> <code>${esc(params.userId)}</code></li>
+    </ul>`;
+
+  return sendEmail({
+    to: adminEmail,
+    subject: sanitizeSubject(`New ${params.role} signup: ${params.userName}`),
+    html: baseLayout(body),
+  });
+}
+
 export async function sendTeacherInvite(params: {
   toEmail: string;
   inviteCode: string;

@@ -250,7 +250,14 @@ export default async function TeacherDetailPage({ params }: PageProps) {
   // ─── Schedule Tab Content ───
   const scheduleContent = (
     <div id="available-slots" className="bg-bg-secondary rounded-2xl border border-border p-5 md:p-6">
-      <AvailableSlots teacherId={t.user_id} teacherTimezone={profile.timezone} />
+      <AvailableSlots
+        teacherId={t.user_id}
+        teacherTimezone={profile.timezone}
+        teacherName={profile.display_name}
+        teacherAvatar={profile.avatar_url}
+        teacherHeadline={t.headline}
+        hourlyRate={t.hourly_rate}
+      />
     </div>
   );
 

@@ -101,7 +101,9 @@ export async function POST(
         );
       }
 
-      // Save to DB
+      // Save to DB. Two participants may race here — daily_rooms.booking_id is
+      // UNIQUE, so the second insert will fail with Postgres error 23505. In
+      // that case re-read the row the winner just inserted and reuse it.
       const { data: savedRoomRaw, error: roomError } = await supabase
         .from("daily_rooms")
         .insert({
@@ -114,14 +116,34 @@ export async function POST(
         .select()
         .single();
 
-      if (roomError || !savedRoomRaw) {
+      if (roomError) {
+        if ((roomError as { code?: string }).code === "23505") {
+          const { data: raceRow } = await supabase
+            .from("daily_rooms")
+            .select("*")
+            .eq("booking_id", bookingId)
+            .single();
+          if (!raceRow) {
+            return NextResponse.json(
+              { error: "Failed to save room" },
+              { status: 500 }
+            );
+          }
+          room = raceRow as unknown as DailyRoom;
+        } else {
+          return NextResponse.json(
+            { error: "Failed to save room" },
+            { status: 500 }
+          );
+        }
+      } else if (!savedRoomRaw) {
         return NextResponse.json(
           { error: "Failed to save room" },
           { status: 500 }
         );
+      } else {
+        room = savedRoomRaw as unknown as DailyRoom;
       }
-
-      room = savedRoomRaw as unknown as DailyRoom;
     }
 
     // Update booking to in_session if still confirmed

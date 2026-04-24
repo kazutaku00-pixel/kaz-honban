@@ -7,16 +7,13 @@ import {
   VideoOff,
   Mic,
   MicOff,
-  PhoneOff,
   Clock,
   AlertTriangle,
   Loader2,
-  User,
   CalendarDays,
-  MessageSquare,
+  LogOut,
 } from "lucide-react";
 import Image from "next/image";
-import { RoomChat } from "@/components/room/room-chat";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n";
@@ -58,19 +55,8 @@ export default function VideoRoomPage() {
   const [timerPhase, setTimerPhase] = useState<"normal" | "warning" | "ending" | "overtime">("normal");
   const [lateMessage, setLateMessage] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
-
-  // Escape closes the leave-confirm modal.
-  useEffect(() => {
-    if (!leaveConfirmOpen) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setLeaveConfirmOpen(false);
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [leaveConfirmOpen]);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [learnerContext, setLearnerContext] = useState<{
     learner_note: string | null;
     learner_level: string | null;
@@ -276,6 +262,32 @@ export default function VideoRoomPage() {
       router.push(`/bookings/${bookingId}/review`);
     }
   }, [bookingId, router, userId, booking]);
+
+  // Daily Prebuilt sends a postMessage when the user clicks its built-in
+  // hangup button. Catch it so we redirect straight to review / report
+  // instead of stranding the user on Daily's "You left the call" screen.
+  useEffect(() => {
+    if (phase !== "joined") return;
+    function onMessage(e: MessageEvent) {
+      const d = e.data as { fromPrebuilt?: boolean; what?: string; action?: string } | null;
+      const what = d?.what ?? d?.action;
+      if (d?.fromPrebuilt && (what === "left-meeting" || what === "meeting-ended")) {
+        handleLeave();
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [phase, handleLeave]);
+
+  // Esc closes the leave-confirm dialog
+  useEffect(() => {
+    if (!showLeaveConfirm) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setShowLeaveConfirm(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [showLeaveConfirm]);
 
   if (phase === "loading") {
     return (
@@ -517,14 +529,13 @@ export default function VideoRoomPage() {
     );
   }
 
-  // Joined - show Daily iframe + chat
+  // Joined — Daily Prebuilt iframe fills the viewport. Chat, screen share,
+  // reactions, etc. all live inside Daily's own UI, so we only render a thin
+  // top bar for the lesson timer + leave button.
   if (phase === "joined" && roomData && booking) {
     const iframeSrc = `${roomData.url}?t=${encodeURIComponent(roomData.token)}`;
-    const isTeacher = userId === booking.teacher_id;
-    const otherPerson = isTeacher ? booking.learner : booking.teacher;
     return (
       <div className="fixed inset-0 bg-black z-50 flex flex-col">
-        {/* Top bar */}
         <div className="flex items-center justify-between px-4 py-2 bg-bg-secondary/90 backdrop-blur-sm border-b border-border">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
@@ -540,119 +551,69 @@ export default function VideoRoomPage() {
             <Clock size={14} />
             <span className="text-sm font-mono font-bold">{remainingTime}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setChatOpen(!chatOpen)}
-              className={cn(
-                "flex items-center gap-1.5 px-4 py-2 rounded-xl font-medium text-sm transition",
-                chatOpen
-                  ? "bg-accent/20 text-accent"
-                  : "bg-white/10 text-text-secondary hover:bg-white/15"
-              )}
-            >
-              <MessageSquare size={14} />
-              {tr("room.chat")}
-            </button>
-            <button
-              onClick={() => setLeaveConfirmOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/20 text-red-400 font-medium text-sm hover:bg-red-500/30 transition"
-            >
-              <PhoneOff size={14} />
-              {tr("room.leave")}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowLeaveConfirm(true)}
+            aria-label={tr("room.leave")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition text-sm font-medium"
+          >
+            <LogOut size={14} />
+            <span className="hidden sm:inline">{tr("room.leave")}</span>
+          </button>
         </div>
 
-        {/* Late indicator */}
         {lateMessage && (
           <div className="px-4 py-2 bg-yellow-500/10 border-b border-yellow-500/20 text-yellow-400 text-sm text-center">
             {lateMessage}
           </div>
         )}
 
-        {/* Main content: Video + Chat */}
-        <div className="flex-1 flex min-h-0">
-          {/* Daily iframe */}
-          <iframe
-            ref={iframeRef}
-            src={iframeSrc}
-            allow="camera; microphone; fullscreen; display-capture; autoplay"
-            className="flex-1 border-0"
-          />
+        <iframe
+          ref={iframeRef}
+          src={iframeSrc}
+          allow="camera; microphone; fullscreen; display-capture; autoplay"
+          className="flex-1 border-0"
+        />
 
-          {/* Chat panel */}
-          {chatOpen && userId && (
-            <div className="w-80 shrink-0 hidden sm:block">
-              <RoomChat
-                bookingId={bookingId}
-                userId={userId}
-                otherName={otherPerson?.display_name ?? ""}
-                isTeacher={isTeacher}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Leave confirmation modal */}
-        {leaveConfirmOpen && (
+        {showLeaveConfirm && (
           <div
-            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
-            onClick={() => setLeaveConfirmOpen(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="leave-confirm-title"
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setShowLeaveConfirm(false);
+            }}
           >
-            <div
-              role="dialog"
-              aria-modal="true"
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm rounded-2xl bg-bg-secondary border border-border p-6 space-y-4"
-            >
+            <div className="bg-bg-secondary border border-border rounded-2xl p-6 max-w-sm w-full space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
-                  <AlertTriangle size={20} className="text-red-400" />
+                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+                  <LogOut size={18} className="text-red-400" />
                 </div>
-                <h2 className="text-lg font-bold text-text-primary">
+                <h3 id="leave-confirm-title" className="text-base font-semibold text-text-primary">
                   {tr("room.leaveConfirmTitle")}
-                </h2>
+                </h3>
               </div>
-              <p className="text-sm text-text-muted">
-                {tr("room.leaveConfirmBody")}
-              </p>
-              <div className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
+              <p className="text-sm text-text-muted">{tr("room.leaveConfirmBody")}</p>
+              <div className="flex flex-col-reverse sm:flex-row gap-2">
                 <button
-                  onClick={() => setLeaveConfirmOpen(false)}
-                  className="flex-1 py-3 rounded-xl bg-white/5 text-text-secondary font-medium text-sm hover:bg-white/10 transition"
+                  type="button"
+                  onClick={() => setShowLeaveConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-white/5 text-text-secondary text-sm font-medium hover:bg-white/10 transition"
                 >
                   {tr("room.leaveConfirmCancel")}
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
-                    setLeaveConfirmOpen(false);
+                    setShowLeaveConfirm(false);
                     handleLeave();
                   }}
-                  className="flex-1 py-3 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-500/90 transition"
+                  className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-500/90 transition"
                 >
                   {tr("room.leaveConfirmAction")}
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Mobile chat overlay */}
-        {chatOpen && userId && (
-          <div className="sm:hidden fixed inset-0 z-[60] flex flex-col">
-            <button
-              onClick={() => setChatOpen(false)}
-              className="px-4 py-3 bg-bg-secondary border-b border-border text-text-muted text-sm text-center"
-            >
-              {tr("room.closeChat")}
-            </button>
-            <div className="flex-1">
-              <RoomChat
-                bookingId={bookingId}
-                userId={userId}
-                otherName={otherPerson?.display_name ?? ""}
-                isTeacher={isTeacher}
-              />
             </div>
           </div>
         )}

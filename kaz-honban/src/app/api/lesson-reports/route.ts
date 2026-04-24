@@ -1,8 +1,18 @@
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { lessonReportSchema } from "@/lib/validations";
 import { notifyReportReady } from "@/lib/notifications";
 import type { Booking } from "@/types/database";
+
+const updateReportSchema = z.object({
+  report_id: z.string().uuid(),
+  template_type: z.string().max(50).optional(),
+  summary: z.string().max(2000).optional(),
+  homework: z.string().max(2000).optional(),
+  next_recommendation: z.string().max(1000).optional(),
+  internal_note: z.string().max(2000).optional(),
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -114,12 +124,15 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { report_id, ...fields } = body;
-
-    if (!report_id) {
-      return NextResponse.json({ error: "report_id required" }, { status: 400 });
+    const body = await request.json().catch(() => null);
+    const parsed = updateReportSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid input", details: parsed.error.flatten() },
+        { status: 400 }
+      );
     }
+    const { report_id, ...fields } = parsed.data;
 
     const supabase = createServiceRoleClient();
 
@@ -139,15 +152,22 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Only touch fields the caller actually provided — avoids wiping stored
+    // values when the client sends a partial payload.
+    const updatePayload: Record<string, unknown> = {};
+    for (const key of [
+      "template_type",
+      "summary",
+      "homework",
+      "next_recommendation",
+      "internal_note",
+    ] as const) {
+      if (fields[key] !== undefined) updatePayload[key] = fields[key];
+    }
+
     const { data: updated, error: updateError } = await supabase
       .from("lesson_reports")
-      .update({
-        template_type: fields.template_type ?? undefined,
-        summary: fields.summary ?? undefined,
-        homework: fields.homework ?? undefined,
-        next_recommendation: fields.next_recommendation ?? undefined,
-        internal_note: fields.internal_note ?? undefined,
-      } as never)
+      .update(updatePayload as never)
       .eq("id", report_id)
       .select()
       .single();
