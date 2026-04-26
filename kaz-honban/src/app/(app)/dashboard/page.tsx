@@ -45,18 +45,71 @@ export default async function DashboardPage() {
   const bookings = (bookingsRaw ?? []) as unknown as RawBooking[];
 
   // Stats
-  const completedCount = bookings.filter((b) => b.status === "completed").length;
+  const completedBookings = bookings.filter((b) => b.status === "completed");
+  const completedCount = completedBookings.length;
   const upcomingCount = bookings.filter(
     (b) =>
       (b.status === "confirmed" || b.status === "in_session") &&
       new Date(b.scheduled_end_at) >= new Date()
   ).length;
 
+  // Hours studied = sum of completed booking durations (mins) / 60.
+  const minutesStudied = completedBookings.reduce(
+    (acc, b) => acc + (b.duration_minutes ?? 0),
+    0
+  );
+  const hoursStudied = Math.round((minutesStudied / 60) * 10) / 10;
+
+  // Distinct teachers (learner side) or learners (teacher side).
+  const counterpartIds = new Set<string>();
+  for (const b of completedBookings) {
+    if (b.learner_id === user.id && b.teacher_id) counterpartIds.add(b.teacher_id);
+    if (b.teacher_id === user.id && b.learner_id) counterpartIds.add(b.learner_id);
+  }
+
+  // Streak — number of consecutive ISO weeks (ending this week) that have at
+  // least one completed lesson. Weekly cadence reflects how language learners
+  // actually book; daily would be too punishing for a 30-min/lesson product.
+  const streakWeeks = computeWeeklyStreak(
+    completedBookings.map((b) => new Date(b.scheduled_start_at))
+  );
+
   return (
     <DashboardClient
       bookings={bookings}
       userId={user.id}
-      stats={{ completedLessons: completedCount, upcomingLessons: upcomingCount }}
+      stats={{
+        completedLessons: completedCount,
+        upcomingLessons: upcomingCount,
+        hoursStudied,
+        teachersTried: counterpartIds.size,
+        streakWeeks,
+      }}
     />
   );
+}
+
+function startOfIsoWeek(d: Date): number {
+  // ISO week starts Monday — normalize to Monday 00:00 local.
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const day = x.getDay(); // 0 = Sun
+  const diff = (day === 0 ? -6 : 1 - day);
+  x.setDate(x.getDate() + diff);
+  return x.getTime();
+}
+
+function computeWeeklyStreak(dates: Date[]): number {
+  if (dates.length === 0) return 0;
+  const weekSet = new Set<number>();
+  for (const d of dates) weekSet.add(startOfIsoWeek(d));
+  let streak = 0;
+  let cursor = startOfIsoWeek(new Date());
+  while (weekSet.has(cursor)) {
+    streak += 1;
+    const prev = new Date(cursor);
+    prev.setDate(prev.getDate() - 7);
+    cursor = startOfIsoWeek(prev);
+  }
+  return streak;
 }

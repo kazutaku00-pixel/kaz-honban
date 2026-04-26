@@ -45,7 +45,11 @@ export const LESSON_DURATION_MINUTES = 30 as const;
 export const bookingSchema = z.object({
   teacher_id: z.string().uuid(),
   slot_id: z.string().uuid(),
-  learner_note: z.string().max(500).optional(),
+  // Bumped from 500 → 1000: the field now also carries a JSON envelope of
+  // structured lesson preferences (pace, correction style, focus areas) on
+  // top of the user-typed note. Plain-text notes are still capped to 500
+  // chars in the modal UI.
+  learner_note: z.string().max(1000).optional(),
 });
 
 export const REVIEW_TAGS = [
@@ -103,6 +107,25 @@ export const LANGUAGES = [
   { value: "vi", label: "Vietnamese" },
   { value: "id", label: "Indonesian" },
 ] as const;
+
+// Surface a country flag for each spoken language so cards stay scannable
+// at a glance. Map covers the LANGUAGES options above; falls back to "🌐" for
+// any unmapped value (defensive, since DB rows can predate this list).
+export const LANGUAGE_FLAGS: Record<string, string> = {
+  en: "🇺🇸",
+  zh: "🇨🇳",
+  ko: "🇰🇷",
+  es: "🇪🇸",
+  fr: "🇫🇷",
+  pt: "🇵🇹",
+  vi: "🇻🇳",
+  id: "🇮🇩",
+  ja: "🇯🇵",
+};
+
+export function languageFlag(value: string): string {
+  return LANGUAGE_FLAGS[value] ?? "🌐";
+}
 
 export const LEVELS = [
   { value: "beginner", label: "Beginner" },

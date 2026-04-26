@@ -2,13 +2,15 @@ import Image from "next/image";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Star, Globe, BookOpen, BadgeCheck, Play, GraduationCap, MapPin, Clock } from "lucide-react";
-import { CATEGORIES, LANGUAGES, LEVELS, REVIEW_TAGS } from "@/lib/validations";
+import {
+  Star, Globe, BookOpen, BadgeCheck, Play, GraduationCap, MapPin, Clock,
+  MessageCircle, Briefcase, Plane, Sparkles, Mic, FileText, Crown,
+} from "lucide-react";
+import { CATEGORIES, LANGUAGES, LEVELS, REVIEW_TAGS, languageFlag } from "@/lib/validations";
 import { AvailableSlots } from "@/components/teachers/available-slots";
 import { TeacherDetailTabs } from "@/components/teachers/teacher-detail-tabs";
 import { IntroVideoPlayer } from "@/components/teachers/intro-video-player";
 import { TeacherShareButton } from "@/components/teachers/teacher-share-button";
-import { TeacherStickyCTA } from "@/components/teachers/teacher-sticky-cta";
 import { BackButton } from "@/components/teachers/back-button";
 import { T } from "@/components/i18n-text";
 import type { TeacherWithProfile, Review, Profile } from "@/types/database";
@@ -28,6 +30,54 @@ function getLabel(
 ) {
   return list.find((item) => item.value === value)?.label ?? value;
 }
+
+// Cambly-style "what they teach" cards. Each category gets an icon + a short
+// concrete sentence so learners can match teachers to goals at a glance.
+const CATEGORY_DETAILS: Record<
+  string,
+  { icon: React.ComponentType<{ size?: number; className?: string }>; blurb: string; tone: string }
+> = {
+  daily_conversation: {
+    icon: MessageCircle,
+    blurb: "Casual everyday topics — getting comfortable speaking.",
+    tone: "text-sky-400 bg-sky-500/10 border-sky-500/20",
+  },
+  business: {
+    icon: Briefcase,
+    blurb: "Meetings, emails, keigo for the workplace.",
+    tone: "text-violet-400 bg-violet-500/10 border-violet-500/20",
+  },
+  jlpt: {
+    icon: GraduationCap,
+    blurb: "Targeted JLPT prep — N5 through N1.",
+    tone: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  },
+  travel: {
+    icon: Plane,
+    blurb: "Survival phrases for visiting Japan.",
+    tone: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+  },
+  anime_manga: {
+    icon: Sparkles,
+    blurb: "Anime, manga & pop culture vocabulary.",
+    tone: "text-pink-400 bg-pink-500/10 border-pink-500/20",
+  },
+  pronunciation: {
+    icon: Mic,
+    blurb: "Pitch accent, intonation, and clarity drills.",
+    tone: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+  },
+  reading_writing: {
+    icon: FileText,
+    blurb: "Kanji, reading comprehension, and writing.",
+    tone: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
+  },
+  keigo: {
+    icon: Crown,
+    blurb: "Polite & honorific Japanese for formal settings.",
+    tone: "text-gold bg-gold/10 border-gold/20",
+  },
+};
 
 type ReviewWithReviewer = Review & {
   reviewer: Pick<Profile, "display_name" | "avatar_url">;
@@ -111,13 +161,60 @@ export default async function TeacherDetailPage({ params }: PageProps) {
   // ─── About Tab Content ───
   const aboutContent = (
     <div className="space-y-6">
-      {/* Bio */}
+      {/* Bio — heading omitted; the parent "About" tab already labels this section */}
       {t.bio && (
         <div className="bg-bg-secondary rounded-2xl border border-border p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-2"><T k="detail.aboutMe" /></h3>
           <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">
             {t.bio}
           </p>
+        </div>
+      )}
+
+      {/* What I teach — Cambly-style concrete category cards */}
+      {t.categories.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-text-primary mb-3">
+            What I teach
+          </h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {t.categories.map((cat) => {
+              const meta = CATEGORY_DETAILS[cat];
+              if (!meta) {
+                return (
+                  <div
+                    key={cat}
+                    className="bg-bg-secondary rounded-2xl border border-border p-4"
+                  >
+                    <p className="text-sm font-semibold text-text-primary">
+                      {getLabel(cat, CATEGORIES)}
+                    </p>
+                  </div>
+                );
+              }
+              const Icon = meta.icon;
+              return (
+                <div
+                  key={cat}
+                  className={cn(
+                    "rounded-2xl border p-4 flex items-start gap-3",
+                    meta.tone
+                  )}
+                >
+                  <div className="shrink-0 mt-0.5">
+                    <Icon size={20} className="opacity-90" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-text-primary">
+                      {getLabel(cat, CATEGORIES)}
+                    </p>
+                    <p className="text-xs text-text-secondary leading-relaxed mt-0.5">
+                      {meta.blurb}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -392,8 +489,21 @@ export default async function TeacherDetailPage({ params }: PageProps) {
                         Verified
                       </span>
                     </div>
+                    {t.languages.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {t.languages.map((lang) => (
+                          <span
+                            key={lang}
+                            className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-gold-subtle text-gold border border-gold/20 inline-flex items-center gap-1"
+                          >
+                            <span aria-hidden className="leading-none">{languageFlag(lang)}</span>
+                            {getLabel(lang, LANGUAGES)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {t.headline && (
-                      <p className="mt-1 text-text-secondary text-xs md:text-sm line-clamp-2">
+                      <p className="mt-1.5 text-text-secondary text-xs md:text-sm line-clamp-2">
                         {t.headline}
                       </p>
                     )}
@@ -432,13 +542,6 @@ export default async function TeacherDetailPage({ params }: PageProps) {
                   )}
                 </div>
 
-                {/* Book CTA (desktop, below price) */}
-                <a
-                  href="#available-slots"
-                  className="hidden md:inline-flex items-center justify-center py-3 px-6 rounded-xl text-sm font-semibold bg-accent hover:bg-accent-hover text-white transition-colors self-start"
-                >
-                  <T k="detail.bookLesson" />
-                </a>
               </div>
 
               {/* Right: intro video */}
@@ -483,8 +586,21 @@ export default async function TeacherDetailPage({ params }: PageProps) {
                     Verified
                   </span>
                 </div>
+                {t.languages.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {t.languages.map((lang) => (
+                      <span
+                        key={lang}
+                        className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-gold-subtle text-gold border border-gold/20 inline-flex items-center gap-1"
+                      >
+                        <span aria-hidden className="leading-none">{languageFlag(lang)}</span>
+                        {getLabel(lang, LANGUAGES)}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {t.headline && (
-                  <p className="mt-1 text-text-secondary text-sm md:text-base">{t.headline}</p>
+                  <p className="mt-2 text-text-secondary text-sm md:text-base">{t.headline}</p>
                 )}
                 <div className="flex items-center gap-4 mt-3 flex-wrap">
                   <div className="flex items-center gap-1">
@@ -519,7 +635,7 @@ export default async function TeacherDetailPage({ params }: PageProps) {
           )}
         </div>
 
-        {/* Tags */}
+        {/* Tags — categories + levels (languages are surfaced near the name) */}
         <div className="flex flex-wrap gap-2 mb-8">
           {t.categories.map((cat) => (
             <span
@@ -527,14 +643,6 @@ export default async function TeacherDetailPage({ params }: PageProps) {
               className="px-2.5 py-1 rounded-lg text-xs font-medium bg-accent-subtle text-accent border border-accent/20"
             >
               {getLabel(cat, CATEGORIES)}
-            </span>
-          ))}
-          {t.languages.map((lang) => (
-            <span
-              key={lang}
-              className="px-2.5 py-1 rounded-lg text-xs font-medium bg-gold-subtle text-gold border border-gold/20"
-            >
-              {getLabel(lang, LANGUAGES)}
             </span>
           ))}
           {t.levels.map((lvl) => (
@@ -570,17 +678,15 @@ export default async function TeacherDetailPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* Tabbed content */}
+        {/* Tabbed content (renders sticky CTA itself for non-schedule tabs) */}
         <TeacherDetailTabs
           aboutContent={aboutContent}
           scheduleContent={scheduleContent}
           reviewsContent={reviewsContent}
           reviewCount={t.review_count}
+          hourlyRate={t.hourly_rate}
         />
       </div>
-
-      {/* Sticky CTA (scroll-triggered, mobile + desktop) */}
-      <TeacherStickyCTA hourlyRate={t.hourly_rate} />
     </div>
   );
 }

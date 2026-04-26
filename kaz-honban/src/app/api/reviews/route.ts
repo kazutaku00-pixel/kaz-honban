@@ -96,6 +96,21 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (reviewError) {
+      // Common case: a concurrent submission won the unique-on-booking_id race.
+      // Treat that as success — the learner's intent is satisfied.
+      if (reviewError.code === "23505") {
+        return NextResponse.json(
+          { error: "You have already reviewed this booking" },
+          { status: 409 }
+        );
+      }
+      console.error("POST /api/reviews insert failed:", {
+        code: reviewError.code,
+        message: reviewError.message,
+        details: reviewError.details,
+        hint: reviewError.hint,
+        booking_id,
+      });
       return NextResponse.json(
         { error: "Failed to create review" },
         { status: 500 }

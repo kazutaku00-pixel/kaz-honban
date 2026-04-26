@@ -4,6 +4,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { User, Calendar, Star } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { TeacherStickyCTA } from "./teacher-sticky-cta";
 
 interface TabItem {
   id: string;
@@ -22,6 +23,7 @@ interface TeacherDetailTabsProps {
   scheduleContent: React.ReactNode;
   reviewsContent: React.ReactNode;
   reviewCount: number;
+  hourlyRate: number;
 }
 
 export function TeacherDetailTabs({
@@ -29,6 +31,7 @@ export function TeacherDetailTabs({
   scheduleContent,
   reviewsContent,
   reviewCount,
+  hourlyRate,
 }: TeacherDetailTabsProps) {
   const [activeTab, setActiveTab] = useState("about");
   const { t } = useI18n();
@@ -67,6 +70,10 @@ export function TeacherDetailTabs({
         {activeTab === "schedule" && scheduleContent}
         {activeTab === "reviews" && reviewsContent}
       </div>
+
+      {/* Sticky "Book lesson" CTA — only shown when the user isn't already
+          looking at the Schedule tab (where the slot picker IS the CTA). */}
+      {activeTab !== "schedule" && <TeacherStickyCTA hourlyRate={hourlyRate} />}
     </div>
   );
 }

@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { Heart } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { TeacherCard } from "./teacher-card";
 import { TeacherFilter, type FilterState } from "./teacher-filter";
 import { NextLessonBanner } from "./next-lesson-banner";
 import { useI18n } from "@/lib/i18n";
+import { useToast } from "@/components/ui/toast";
 import type { TeacherWithProfile, Booking, Profile } from "@/types/database";
-import { createClient } from "@/lib/supabase/client";
 
 const ITEMS_PER_PAGE = 12;
 
@@ -14,10 +16,17 @@ interface TeacherListClientProps {
   initialTeachers: TeacherWithProfile[];
   nextBooking?: (Booking & { teacher: Profile }) | null;
   slotsByTeacher?: Record<string, string[]>;
+  initialFavorites?: string[];
 }
 
-export function TeacherListClient({ initialTeachers, nextBooking, slotsByTeacher = {} }: TeacherListClientProps) {
+export function TeacherListClient({
+  initialTeachers,
+  nextBooking,
+  slotsByTeacher = {},
+  initialFavorites = [],
+}: TeacherListClientProps) {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [filters, setFilters] = useState<FilterState>({
     keyword: "",
     category: "",
@@ -29,10 +38,16 @@ export function TeacherListClient({ initialTeachers, nextBooking, slotsByTeacher
     timeSlot: "",
   });
   const [page, setPage] = useState(1);
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [favorites, setFavorites] = useState<Set<string>>(new Set(initialFavorites));
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   const filtered = useMemo(() => {
     let list = [...initialTeachers];
+
+    // Favorites-only toggle
+    if (favoritesOnly) {
+      list = list.filter((t) => favorites.has(t.user_id));
+    }
 
     // Keyword search
     if (filters.keyword.trim()) {
@@ -137,7 +152,7 @@ export function TeacherListClient({ initialTeachers, nextBooking, slotsByTeacher
     }
 
     return list;
-  }, [initialTeachers, filters, slotsByTeacher]);
+  }, [initialTeachers, filters, slotsByTeacher, favoritesOnly, favorites]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice(0, page * ITEMS_PER_PAGE);
@@ -145,33 +160,42 @@ export function TeacherListClient({ initialTeachers, nextBooking, slotsByTeacher
 
   const handleToggleFavorite = useCallback(
     async (teacherId: string) => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
+      const wasFavorited = favorites.has(teacherId);
 
+      // Optimistic UI — flip immediately, roll back if the server rejects.
       setFavorites((prev) => {
         const next = new Set(prev);
-        if (next.has(teacherId)) {
-          next.delete(teacherId);
-          supabase
-            .from("favorites")
-            .delete()
-            .eq("learner_id", user.id)
-            .eq("teacher_id", teacherId)
-            .then();
-        } else {
-          next.add(teacherId);
-          supabase
-            .from("favorites")
-            .insert({ learner_id: user.id, teacher_id: teacherId } as never)
-            .then();
-        }
+        if (wasFavorited) next.delete(teacherId);
+        else next.add(teacherId);
         return next;
       });
+
+      try {
+        const res = await fetch("/api/favorites", {
+          method: wasFavorited ? "DELETE" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ teacher_id: teacherId }),
+        });
+        // 409 ("already favorited") is a no-op success when adding.
+        if (!res.ok && !(res.status === 409 && !wasFavorited)) {
+          throw new Error(`status ${res.status}`);
+        }
+        toast(
+          wasFavorited ? "Removed from favorites" : "Added to favorites",
+          "success"
+        );
+      } catch {
+        // Roll back optimistic flip on failure.
+        setFavorites((prev) => {
+          const next = new Set(prev);
+          if (wasFavorited) next.add(teacherId);
+          else next.delete(teacherId);
+          return next;
+        });
+        toast("Couldn't update favorites. Please try again.", "error");
+      }
     },
-    []
+    [favorites, toast]
   );
 
   const handleFilterChange = useCallback((newFilters: FilterState) => {
@@ -182,13 +206,38 @@ export function TeacherListClient({ initialTeachers, nextBooking, slotsByTeacher
   return (
     <div>
       {/* Page heading */}
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold font-[family-name:var(--font-display)] text-text-primary">
-          {t("teachers.title")}
-        </h1>
-        <p className="mt-1 text-text-secondary text-sm">
-          {t("teachers.subtitle")}
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold font-[family-name:var(--font-display)] text-text-primary">
+            {t("teachers.title")}
+          </h1>
+          <p className="mt-1 text-text-secondary text-sm">
+            {t("teachers.subtitle")}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setFavoritesOnly((v) => !v);
+            setPage(1);
+          }}
+          aria-pressed={favoritesOnly}
+          className={cn(
+            "shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+            favoritesOnly
+              ? "border-accent/40 bg-accent-subtle text-accent"
+              : "border-border bg-bg-secondary text-text-secondary hover:border-border-hover hover:text-text-primary"
+          )}
+        >
+          <Heart
+            size={13}
+            className={cn(favoritesOnly ? "fill-accent text-accent" : "text-text-muted")}
+          />
+          Favorites
+          {favorites.size > 0 && (
+            <span className="text-[10px] text-text-muted ml-0.5">({favorites.size})</span>
+          )}
+        </button>
       </div>
 
       {/* Next lesson banner */}
@@ -204,12 +253,23 @@ export function TeacherListClient({ initialTeachers, nextBooking, slotsByTeacher
       {/* Teacher grid */}
       {filtered.length === 0 ? (
         <div className="text-center py-20">
-          <p className="text-text-secondary text-lg mb-2">
-            {t("teachers.noResults")}
-          </p>
-          <p className="text-text-muted text-sm">
-            {t("teachers.noResultsHint")}
-          </p>
+          {favoritesOnly && favorites.size === 0 ? (
+            <>
+              <p className="text-text-secondary text-lg mb-2">No favorites yet</p>
+              <p className="text-text-muted text-sm">
+                Tap the heart on a teacher card to save them here.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-text-secondary text-lg mb-2">
+                {t("teachers.noResults")}
+              </p>
+              <p className="text-text-muted text-sm">
+                {t("teachers.noResultsHint")}
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <>

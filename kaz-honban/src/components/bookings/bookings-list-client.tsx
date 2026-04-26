@@ -19,8 +19,10 @@ import {
   Target,
   Mic,
   NotebookPen,
+  MessageCircle,
 } from "lucide-react";
 import type { BookingStatus } from "@/types/database";
+import { BookingChatPanel } from "./booking-chat-panel";
 
 interface BookingItem {
   id: string;
@@ -69,6 +71,7 @@ export function BookingsListClient({
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
+  const [chatOpenId, setChatOpenId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
 
@@ -356,6 +359,17 @@ export function BookingsListClient({
                             Join Room
                           </button>
                         )}
+                        <button
+                          onClick={() => setChatOpenId(booking.id)}
+                          className={cn(
+                            "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl",
+                            "bg-white/5 text-gray-300 font-medium text-xs",
+                            "hover:bg-white/10 transition"
+                          )}
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          Message
+                        </button>
                         {!isTeacher && booking.teacher?.id && (
                           <button
                             onClick={() => handleReschedule(booking)}
@@ -434,6 +448,23 @@ export function BookingsListClient({
           </div>
         )}
       </div>
+
+      {/* Chat panel — mounted globally so opening one row doesn't reset another */}
+      {chatOpenId && (() => {
+        const open = bookings.find((b) => b.id === chatOpenId);
+        if (!open) return null;
+        const other = getOtherPerson(open);
+        return (
+          <BookingChatPanel
+            bookingId={open.id}
+            currentUserId={userId}
+            counterpartName={other?.display_name ?? "Counterpart"}
+            counterpartAvatar={other?.avatar_url ?? null}
+            open
+            onClose={() => setChatOpenId(null)}
+          />
+        );
+      })()}
     </div>
   );
 }

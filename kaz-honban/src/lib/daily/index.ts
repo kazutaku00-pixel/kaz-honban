@@ -34,6 +34,34 @@ async function getDailyRoom(name: string): Promise<{ name: string; url: string }
   }
 }
 
+// Pre-existing rooms were created with `enable_screenshare:false`. When we
+// reuse one (idempotency path), patch its properties so the new feature
+// applies without forcing teachers to recreate bookings.
+async function patchDailyRoomScreenshare(name: string): Promise<void> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    await fetch(`${DAILY_API_URL}/rooms/${encodeURIComponent(name)}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getDailyApiKey()}`,
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        properties: {
+          enable_screenshare: true,
+        },
+      }),
+    });
+    // Best-effort: even if PATCH fails, fall through and reuse the room.
+  } catch {
+    /* swallow — screenshare is enhancement, not a hard requirement */
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function createDailyRoom(bookingId: string, expiresAt: Date) {
   const name = roomNameFor(bookingId);
   const controller = new AbortController();
@@ -53,7 +81,7 @@ export async function createDailyRoom(bookingId: string, expiresAt: Date) {
         properties: {
           exp: Math.floor(expiresAt.getTime() / 1000),
           enable_chat: true,
-          enable_screenshare: false,
+          enable_screenshare: true,
           max_participants: 2,
           enable_knocking: false,
           start_audio_off: false,
@@ -71,7 +99,12 @@ export async function createDailyRoom(bookingId: string, expiresAt: Date) {
     const errorText = await res.text();
     if (res.status === 409 || /already.*(exist|taken)/i.test(errorText)) {
       const existing = await getDailyRoom(name);
-      if (existing) return existing;
+      if (existing) {
+        // Backfill new properties (e.g. screenshare) onto rooms created
+        // before they were enabled.
+        await patchDailyRoomScreenshare(name);
+        return existing;
+      }
     }
     throw new Error(`Failed to create Daily room: ${errorText}`);
   } finally {

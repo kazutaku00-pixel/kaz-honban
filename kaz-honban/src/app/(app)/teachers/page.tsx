@@ -19,7 +19,7 @@ export default async function TeachersPage() {
   const now = new Date();
   const weekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-  const [{ data: teachers }, upcomingResult, { data: openSlots }] = await Promise.all([
+  const [{ data: teachers }, upcomingResult, { data: openSlots }, favoritesResult] = await Promise.all([
     supabase
       .from("teacher_profiles")
       .select("*, profile:profiles!user_id(*)")
@@ -43,6 +43,12 @@ export default async function TeachersPage() {
       .gte("start_at", now.toISOString())
       .lt("start_at", weekLater.toISOString())
       .order("start_at", { ascending: true }),
+    user
+      ? supabase
+          .from("favorites")
+          .select("teacher_id")
+          .eq("learner_id", user.id)
+      : Promise.resolve({ data: null }),
   ]);
 
   const nextBooking =
@@ -57,12 +63,16 @@ export default async function TeachersPage() {
     slotsByTeacher[slot.teacher_id].push(slot.start_at);
   }
 
+  const initialFavorites = ((favoritesResult.data ?? []) as unknown as { teacher_id: string }[])
+    .map((f) => f.teacher_id);
+
   return (
     <div className="mx-auto max-w-7xl px-4 md:px-5 py-6 md:py-8">
       <TeacherListClient
         initialTeachers={(teachers as TeacherWithProfile[]) ?? []}
         nextBooking={nextBooking}
         slotsByTeacher={slotsByTeacher}
+        initialFavorites={initialFavorites}
       />
     </div>
   );

@@ -17,6 +17,15 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { LESSON_DURATION_MINUTES } from "@/lib/validations";
+import {
+  LESSON_PACE_OPTIONS,
+  CORRECTION_STYLES,
+  FOCUS_AREAS,
+  encodePreferences,
+  type LessonPace,
+  type CorrectionStyle,
+  type FocusArea,
+} from "@/lib/lesson-preferences";
 import type { AvailabilitySlot } from "@/types/database";
 
 interface OverlappingBooking {
@@ -54,6 +63,10 @@ export function BookingConfirmModal({
   const router = useRouter();
   const [learnerId, setLearnerId] = useState<string | null>(null);
   const [learnerNote, setLearnerNote] = useState("");
+  const [pace, setPace] = useState<LessonPace | "">("");
+  const [correction, setCorrection] = useState<CorrectionStyle | "">("");
+  const [focus, setFocus] = useState<FocusArea[]>([]);
+  const [encouragement, setEncouragement] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
@@ -102,6 +115,10 @@ export function BookingConfirmModal({
   useEffect(() => {
     if (!open) return;
     setLearnerNote("");
+    setPace("");
+    setCorrection("");
+    setFocus([]);
+    setEncouragement(false);
     setError(null);
     setIsConfirmed(false);
     setOverlappingBooking(null);
@@ -158,13 +175,21 @@ export function BookingConfirmModal({
     setIsLoading(true);
     setError(null);
     try {
+      const encoded = encodePreferences({
+        v: 1,
+        pace: pace || undefined,
+        correction: correction || undefined,
+        focus: focus.length > 0 ? focus : undefined,
+        encouragement: encouragement || undefined,
+        note: learnerNote.trim() || undefined,
+      });
       const res = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           teacher_id: teacherId,
           slot_id: slot.id,
-          learner_note: learnerNote || undefined,
+          learner_note: encoded ?? undefined,
         }),
       });
       const data = await res.json();
@@ -358,6 +383,99 @@ export function BookingConfirmModal({
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Lesson preferences — saves the teacher 5 min of warm-up */}
+            <div className="rounded-xl bg-white/5 border border-white/10 p-4 space-y-4">
+              <h4 className="font-semibold text-gray-300 text-xs uppercase tracking-wider">
+                Lesson Preferences (optional)
+              </h4>
+
+              <div className="space-y-2">
+                <p className="text-xs text-gray-400">Pace</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {LESSON_PACE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() =>
+                        setPace((cur) => (cur === opt.value ? "" : opt.value))
+                      }
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-xs font-medium border transition",
+                        pace === opt.value
+                          ? "bg-[#FF6B4A] border-[#FF6B4A] text-white"
+                          : "bg-white/5 border-white/10 text-gray-300 hover:border-white/20"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs text-gray-400">Corrections</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {CORRECTION_STYLES.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() =>
+                        setCorrection((cur) => (cur === opt.value ? "" : opt.value))
+                      }
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-xs font-medium border transition",
+                        correction === opt.value
+                          ? "bg-[#FF6B4A] border-[#FF6B4A] text-white"
+                          : "bg-white/5 border-white/10 text-gray-300 hover:border-white/20"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs text-gray-400">Focus areas (multi)</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {FOCUS_AREAS.map((opt) => {
+                    const active = focus.includes(opt.value);
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() =>
+                          setFocus((cur) =>
+                            active
+                              ? cur.filter((v) => v !== opt.value)
+                              : [...cur, opt.value]
+                          )
+                        }
+                        className={cn(
+                          "px-3 py-1.5 rounded-full text-xs font-medium border transition",
+                          active
+                            ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
+                            : "bg-white/5 border-white/10 text-gray-300 hover:border-white/20"
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={encouragement}
+                  onChange={(e) => setEncouragement(e.target.checked)}
+                  className="accent-[#FF6B4A]"
+                />
+                Encourage me — I&apos;m nervous about speaking.
+              </label>
             </div>
 
             {/* Learner note */}

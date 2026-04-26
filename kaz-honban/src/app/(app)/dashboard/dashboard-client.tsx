@@ -9,6 +9,7 @@ import {
   Calendar, Clock, User, Video, X, Star, FileText,
   Loader2, BookOpen, History, ChevronDown, ChevronUp,
   ClipboardList, BarChart3, Search, ArrowRight,
+  Flame, Hourglass, Users as UsersIcon, Trophy,
 } from "lucide-react";
 import type { BookingStatus } from "@/types/database";
 
@@ -31,7 +32,73 @@ interface BookingItem {
 interface DashboardClientProps {
   bookings: BookingItem[];
   userId: string;
-  stats: { completedLessons: number; upcomingLessons: number };
+  stats: {
+    completedLessons: number;
+    upcomingLessons: number;
+    hoursStudied: number;
+    teachersTried: number;
+    streakWeeks: number;
+  };
+}
+
+interface Badge {
+  id: string;
+  label: string;
+  hint: string;
+  earned: boolean;
+}
+
+function computeBadges(stats: DashboardClientProps["stats"]): Badge[] {
+  return [
+    {
+      id: "first_lesson",
+      label: "First lesson",
+      hint: "Complete your very first lesson.",
+      earned: stats.completedLessons >= 1,
+    },
+    {
+      id: "ten_lessons",
+      label: "10 lessons",
+      hint: "Reach 10 completed lessons.",
+      earned: stats.completedLessons >= 10,
+    },
+    {
+      id: "fifty_lessons",
+      label: "50 lessons",
+      hint: "Reach 50 completed lessons.",
+      earned: stats.completedLessons >= 50,
+    },
+    {
+      id: "five_hours",
+      label: "5 hours studied",
+      hint: "Spend 5 total hours in lessons.",
+      earned: stats.hoursStudied >= 5,
+    },
+    {
+      id: "twenty_hours",
+      label: "20 hours studied",
+      hint: "Spend 20 total hours in lessons.",
+      earned: stats.hoursStudied >= 20,
+    },
+    {
+      id: "explorer",
+      label: "Met 3 teachers",
+      hint: "Try 3 different teachers.",
+      earned: stats.teachersTried >= 3,
+    },
+    {
+      id: "streak_2",
+      label: "2-week streak",
+      hint: "Take a lesson 2 weeks in a row.",
+      earned: stats.streakWeeks >= 2,
+    },
+    {
+      id: "streak_4",
+      label: "1-month streak",
+      hint: "Take a lesson 4 weeks in a row.",
+      earned: stats.streakWeeks >= 4,
+    },
+  ];
 }
 
 type Tab = "upcoming" | "history";
@@ -173,10 +240,12 @@ export function DashboardClient({ bookings, userId, stats }: DashboardClientProp
       )}
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Upcoming", value: stats.upcomingLessons, icon: Calendar, color: "text-blue-400" },
-          { label: "Completed", value: stats.completedLessons, icon: BarChart3, color: "text-emerald-400" },
+          { label: "Upcoming", value: String(stats.upcomingLessons), icon: Calendar, color: "text-blue-400" },
+          { label: "Completed", value: String(stats.completedLessons), icon: BarChart3, color: "text-emerald-400" },
+          { label: "Hours", value: stats.hoursStudied.toFixed(1), icon: Hourglass, color: "text-violet-400" },
+          { label: "Teachers", value: String(stats.teachersTried), icon: UsersIcon, color: "text-cyan-400" },
         ].map((s) => (
           <div key={s.label} className="bg-bg-secondary rounded-2xl border border-border p-4 text-center">
             <s.icon size={18} className={cn("mx-auto mb-1", s.color)} />
@@ -185,6 +254,61 @@ export function DashboardClient({ bookings, userId, stats }: DashboardClientProp
           </div>
         ))}
       </div>
+
+      {/* Streak + badges */}
+      {(() => {
+        const badges = computeBadges(stats);
+        const earned = badges.filter((b) => b.earned);
+        const nextBadge = badges.find((b) => !b.earned);
+        return (
+          <div className="bg-bg-secondary rounded-2xl border border-border p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Flame size={18} className={cn(stats.streakWeeks > 0 ? "text-orange-400" : "text-text-muted")} />
+                <div>
+                  <p className="text-sm font-semibold text-text-primary leading-tight">
+                    {stats.streakWeeks > 0
+                      ? `${stats.streakWeeks}-week streak`
+                      : "No active streak"}
+                  </p>
+                  <p className="text-[10px] text-text-muted leading-tight">
+                    {stats.streakWeeks > 0
+                      ? "Keep it alive — book a lesson this week."
+                      : "Take a lesson this week to start one."}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-[10px] text-text-muted">
+                <Trophy size={12} />
+                {earned.length}/{badges.length}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {badges.map((b) => (
+                <span
+                  key={b.id}
+                  title={b.hint}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-[10px] font-medium border",
+                    b.earned
+                      ? "bg-gold/10 border-gold/30 text-gold"
+                      : "bg-white/5 border-white/10 text-text-muted opacity-70"
+                  )}
+                >
+                  {b.label}
+                </span>
+              ))}
+            </div>
+
+            {nextBadge && (
+              <p className="text-[11px] text-text-muted">
+                Next: <span className="text-text-secondary font-medium">{nextBadge.label}</span> — {nextBadge.hint}
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Tabs */}
       <div className="flex gap-2">

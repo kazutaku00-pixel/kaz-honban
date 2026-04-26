@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Star, Heart, Play, BadgeCheck, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import { languageFlag } from "@/lib/validations";
 import type { TeacherWithProfile } from "@/types/database";
 
 const avatarColors = [
@@ -247,8 +248,9 @@ export function TeacherCard({
           {teacher.languages.slice(0, 2).map((lang) => (
             <span
               key={lang}
-              className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-gold-subtle text-gold"
+              className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-gold-subtle text-gold inline-flex items-center gap-1"
             >
+              <span aria-hidden className="leading-none">{languageFlag(lang)}</span>
               {lang.toUpperCase()}
             </span>
           ))}

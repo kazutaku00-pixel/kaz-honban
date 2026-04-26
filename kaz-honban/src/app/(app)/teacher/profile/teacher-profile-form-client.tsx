@@ -247,6 +247,26 @@ export function TeacherProfileFormClient({
 
   const approvalStatus = existingProfile?.approval_status ?? "draft";
 
+  // Profile completeness — Cambly/Preply-style guide. Each requirement is a
+  // *concrete* signal that learners look for; weights aren't equal in real
+  // life but treating them as equal keeps the meter honest and predictable.
+  const checks: { label: string; ok: boolean; hint: string }[] = [
+    { label: "Profile photo", ok: !!avatarUrl, hint: "A clear smiling photo doubles intro views." },
+    { label: "Headline", ok: headline.trim().length >= 10, hint: "10+ chars. e.g. \"Patient native teacher for daily conversation\"." },
+    { label: "Bio (200+ chars)", ok: bio.trim().length >= 200, hint: "Tell learners who you are, how you teach, and what makes lessons fun." },
+    { label: "Intro video", ok: !!introVideoUrl, hint: "A 30–60s video lifts booking rate ~3x — record it on your phone." },
+    { label: "Pick categories", ok: categories.length >= 2, hint: "Select 2+ so learners with different goals can find you." },
+    { label: "Pick languages", ok: languages.length >= 1, hint: "Languages you can fall back on when learners get stuck." },
+    { label: "Pick levels", ok: levels.length >= 1, hint: "JLPT N5–N1 / Beginner — be honest about who you can teach." },
+    { label: "Country of origin", ok: !!countryOfOrigin.trim(), hint: "Builds trust — learners want to know where you're from." },
+    { label: "Years of experience", ok: yearsOfExperience !== "" && Number(yearsOfExperience) >= 0, hint: "Even \"0 years (just enthusiastic)\" is fine." },
+    { label: "Teaching style", ok: !!teachingStyle.trim(), hint: "How will a 30-min lesson actually feel? Free talk? Drills?" },
+  ];
+  const completedCount = checks.filter((c) => c.ok).length;
+  const totalCount = checks.length;
+  const completionPct = Math.round((completedCount / totalCount) * 100);
+  const nextStep = checks.find((c) => !c.ok);
+
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
       {/* Header */}
@@ -263,6 +283,43 @@ export function TeacherProfileFormClient({
           </h1>
           <p className="text-xs text-text-muted capitalize">{t("profile.status")}: {approvalStatus}</p>
         </div>
+      </div>
+
+      {/* Profile completion meter — surfaces the next concrete step. */}
+      <div className="bg-bg-secondary rounded-2xl border border-border p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-text-primary">
+            Profile completeness
+          </h2>
+          <span className="text-xs font-mono text-text-muted">
+            {completedCount}/{totalCount} · {completionPct}%
+          </span>
+        </div>
+        <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+          <div
+            className={cn(
+              "h-full transition-[width] duration-300",
+              completionPct === 100
+                ? "bg-emerald-400"
+                : completionPct >= 70
+                ? "bg-gold"
+                : "bg-accent"
+            )}
+            style={{ width: `${completionPct}%` }}
+          />
+        </div>
+        {nextStep ? (
+          <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-xs space-y-1">
+            <p className="font-medium text-text-primary">
+              Next: {nextStep.label}
+            </p>
+            <p className="text-text-muted leading-relaxed">{nextStep.hint}</p>
+          </div>
+        ) : (
+          <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 text-xs text-emerald-300">
+            Profile is complete — you&apos;re ready to submit for review.
+          </div>
+        )}
       </div>
 
       {/* Avatar section */}

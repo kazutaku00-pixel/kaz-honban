@@ -18,6 +18,13 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { supportMailto, SUPPORT_EMAIL } from "@/lib/support";
+import {
+  decodePreferences,
+  paceLabel,
+  correctionLabel,
+  focusLabel,
+} from "@/lib/lesson-preferences";
+import { HelperPhrasesPanel } from "@/components/room/helper-phrases";
 
 interface RoomData {
   url: string;
@@ -427,14 +434,54 @@ export default function VideoRoomPage() {
                   </div>
                 </div>
               )}
-              {learnerContext.learner_note && (
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-text-muted">Note for this lesson</p>
-                  <p className="text-sm text-text-secondary italic whitespace-pre-line">
-                    &ldquo;{learnerContext.learner_note}&rdquo;
-                  </p>
-                </div>
-              )}
+              {learnerContext.learner_note && (() => {
+                const prefs = decodePreferences(learnerContext.learner_note);
+                if (!prefs) return null;
+                const hasStructured =
+                  prefs.pace ||
+                  prefs.correction ||
+                  (prefs.focus && prefs.focus.length > 0) ||
+                  prefs.encouragement;
+                return (
+                  <div className="space-y-2">
+                    <p className="text-[10px] uppercase tracking-wider text-text-muted">
+                      Lesson preferences
+                    </p>
+                    {hasStructured && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {prefs.pace && (
+                          <span className="px-2 py-0.5 rounded-full bg-accent/10 text-accent text-[10px]">
+                            {paceLabel(prefs.pace)}
+                          </span>
+                        )}
+                        {prefs.correction && (
+                          <span className="px-2 py-0.5 rounded-full bg-accent/10 text-accent text-[10px]">
+                            {correctionLabel(prefs.correction)}
+                          </span>
+                        )}
+                        {prefs.focus?.map((f) => (
+                          <span
+                            key={f}
+                            className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px]"
+                          >
+                            {focusLabel(f)}
+                          </span>
+                        ))}
+                        {prefs.encouragement && (
+                          <span className="px-2 py-0.5 rounded-full bg-gold/15 text-gold text-[10px]">
+                            Wants encouragement
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {prefs.note && (
+                      <p className="text-sm text-text-secondary italic whitespace-pre-line">
+                        &ldquo;{prefs.note}&rdquo;
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -574,6 +621,9 @@ export default function VideoRoomPage() {
           allow="camera; microphone; fullscreen; display-capture; autoplay"
           className="flex-1 border-0"
         />
+
+        {/* Floating Japanese phrase helper — only meaningful for the learner. */}
+        {userId === booking.learner_id && <HelperPhrasesPanel />}
 
         {showLeaveConfirm && (
           <div
