@@ -146,12 +146,17 @@ export async function POST(
       }
     }
 
-    // Update booking to in_session if still confirmed
+    // Update booking to in_session if still confirmed.
+    // The eq("status", "confirmed") guard makes this a no-op when another
+    // request (or the other participant) has already flipped the row, so
+    // the second join doesn't accidentally mutate a cancelled / no_show
+    // booking that was changed between our snapshot read and this update.
     if (booking.status === "confirmed") {
       await supabase
         .from("bookings")
         .update({ status: "in_session" } as never)
-        .eq("id", bookingId);
+        .eq("id", bookingId)
+        .eq("status", "confirmed");
     }
 
     // Generate meeting token — only the teacher gets owner privileges

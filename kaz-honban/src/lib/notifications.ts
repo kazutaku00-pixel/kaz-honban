@@ -70,7 +70,8 @@ export async function notifyBookingCancelled(
   supabase: SupabaseClient,
   notifyUserId: string,
   cancellerName: string,
-  startAt: string
+  startAt: string,
+  reason?: string | null
 ) {
   const date = new Date(startAt).toLocaleDateString("en-US", {
     month: "short",
@@ -78,12 +79,14 @@ export async function notifyBookingCancelled(
     hour: "2-digit",
     minute: "2-digit",
   });
+  const trimmed = reason?.trim();
+  const reasonSuffix = trimmed ? ` — "${trimmed.slice(0, 140)}"` : "";
   await createNotification({
     supabase,
     userId: notifyUserId,
     type: "booking_cancelled",
     title: "Booking Cancelled",
-    message: `${cancellerName} cancelled the lesson on ${date}`,
+    message: `${cancellerName} cancelled the lesson on ${date}${reasonSuffix}`,
     link: `/bookings`,
   });
 }

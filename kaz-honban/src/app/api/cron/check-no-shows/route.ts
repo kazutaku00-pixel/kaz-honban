@@ -19,15 +19,20 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServiceRoleClient();
 
-    // 15 minutes ago
-    const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    // Only mark as no-show after the lesson would have ended.
+    // The join endpoint allows entry until scheduled_end_at + 30 min, so an
+    // earlier cutoff (start + 15 min) caused a learner who joined at, say,
+    // start + 18 min to see "Booking is not in a joinable state" because
+    // this cron had already flipped the row to no_show. Using end_at as the
+    // cutoff keeps no-show detection conservative and lines this cron up
+    // with the no-show branch in complete-lessons.
+    const nowIso = new Date().toISOString();
 
-    // Find confirmed bookings past start + 15 min where nobody joined (no daily_room)
     const { data: bookingsRaw, error: fetchError } = await supabase
       .from("bookings")
       .select("id, slot_id, duration_minutes, teacher_id, learner_id, daily_room:daily_rooms(id)")
       .eq("status", "confirmed")
-      .lt("scheduled_start_at", cutoff);
+      .lt("scheduled_end_at", nowIso);
 
     if (fetchError) {
       console.error("check-no-shows fetch error:", fetchError);

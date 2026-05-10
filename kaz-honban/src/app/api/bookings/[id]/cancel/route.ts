@@ -105,11 +105,27 @@ export async function PATCH(
       );
     }
 
-    // Release every slot inside the booking window (duration-agnostic)
-    await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<unknown>)(
+    // Release every slot inside the booking window (duration-agnostic).
+    // If this fails the booking is already cancelled — surface a 500 so
+    // the caller knows the slot may be stuck as 'booked' and can retry,
+    // instead of silently swallowing the error and stranding the slot.
+    const { error: releaseError } = await (supabase.rpc as unknown as (
+      fn: string,
+      args: Record<string, unknown>
+    ) => Promise<{ error: { message: string } | null }>)(
       "release_booking_slots",
       { p_booking_id: bookingId }
     );
+    if (releaseError) {
+      console.error("release_booking_slots failed for", bookingId, releaseError);
+      return NextResponse.json(
+        {
+          error:
+            "Booking cancelled, but slots could not be released. Please contact support if the slot remains unavailable.",
+        },
+        { status: 500 }
+      );
+    }
 
     // Notify the other party
     const { data: cancellerProfile } = await supabase
@@ -119,7 +135,13 @@ export async function PATCH(
       .single();
     const cancellerName = (cancellerProfile as unknown as { display_name: string } | null)?.display_name ?? "Someone";
     const notifyId = user.id === booking.learner_id ? booking.teacher_id : booking.learner_id;
-    await notifyBookingCancelled(supabase, notifyId, cancellerName, booking.scheduled_start_at);
+    await notifyBookingCancelled(
+      supabase,
+      notifyId,
+      cancellerName,
+      booking.scheduled_start_at,
+      cancellationReason
+    );
 
     return NextResponse.json({ success: true });
   } catch (err) {

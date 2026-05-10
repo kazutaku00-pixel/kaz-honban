@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -11,7 +11,7 @@ import {
   Clock,
   Lock,
   Unlock,
-  Zap,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
@@ -41,6 +41,12 @@ interface ScheduleClientProps {
   slots: SlotItem[];
 }
 
+interface SyncResponse {
+  created: number;
+  pruned: number;
+  error?: string;
+}
+
 export function ScheduleClient({ templates: initialTemplates, slots: initialSlots }: ScheduleClientProps) {
   const router = useRouter();
   const { t } = useI18n();
@@ -51,12 +57,88 @@ export function ScheduleClient({ templates: initialTemplates, slots: initialSlot
   const [newStartTime, setNewStartTime] = useState("09:00");
   const [newEndTime, setNewEndTime] = useState("17:00");
   const [saving, setSaving] = useState(false);
-  const [generating, setGenerating] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [togglingSlot, setTogglingSlot] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastSync, setLastSync] = useState<{ created: number; pruned: number } | null>(null);
+  const teacherIdRef = useRef<string | null>(null);
 
   // Warn before unload while an add-template form is open with unsaved input
   useUnsavedChanges(addingDay !== null);
+
+  // Refresh slot list from the DB. Used after sync and from realtime events.
+  async function refreshSlots() {
+    const supabase = createClient();
+    const teacherId = teacherIdRef.current;
+    if (!teacherId) return;
+    const { data } = await supabase
+      .from("availability_slots")
+      .select("id, start_at, end_at, status")
+      .eq("teacher_id", teacherId)
+      .gte("start_at", new Date().toISOString())
+      .order("start_at", { ascending: true })
+      .limit(200);
+    setSlots(((data ?? []) as unknown) as SlotItem[]);
+  }
+
+  // Call the server-side sync RPC. Generates 30-min slots that match the
+  // cron's behavior, prunes orphan opens, and refreshes the local list.
+  async function syncAvailability(): Promise<SyncResponse | null> {
+    setSyncing(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/teacher/availability/sync", { method: "POST" });
+      const data = (await res.json()) as SyncResponse;
+      if (!res.ok) {
+        setError(data.error ?? "Failed to sync availability");
+        return null;
+      }
+      setLastSync({ created: data.created, pruned: data.pruned });
+      await refreshSlots();
+      return data;
+    } catch {
+      setError("Failed to sync availability");
+      return null;
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  // Resolve teacher id once and subscribe to realtime updates on the
+  // teacher's own slot rows so block / unblock / dedupe / cron writes
+  // reflect without a manual refresh.
+  useEffect(() => {
+    let mounted = true;
+    const supabase = createClient();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!mounted || !user) return;
+      teacherIdRef.current = user.id;
+
+      channel = supabase
+        .channel(`schedule-slots-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "availability_slots",
+            filter: `teacher_id=eq.${user.id}`,
+          },
+          () => {
+            void refreshSlots();
+          }
+        )
+        .subscribe();
+    })();
+
+    return () => {
+      mounted = false;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, []);
 
   async function addTemplate(dayOfWeek: number) {
     setSaving(true);
@@ -83,8 +165,12 @@ export function ScheduleClient({ templates: initialTemplates, slots: initialSlot
       }
 
       const row = data as unknown as TemplateItem;
-      setTemplates([...templates, row]);
+      setTemplates((prev) => [...prev, row]);
       setAddingDay(null);
+
+      // Auto-sync so the new template immediately produces bookable
+      // 30-min slots — teachers shouldn't have to remember a second click.
+      await syncAvailability();
     } catch {
       setError("Failed to add template");
     } finally {
@@ -95,102 +181,19 @@ export function ScheduleClient({ templates: initialTemplates, slots: initialSlot
   async function deleteTemplate(id: string) {
     try {
       const supabase = createClient();
-      const { error: deleteError } = await supabase.from("schedule_templates").update({ is_active: false } as never).eq("id", id);
+      const { error: deleteError } = await supabase
+        .from("schedule_templates")
+        .update({ is_active: false } as never)
+        .eq("id", id);
       if (deleteError) {
         setError("Failed to delete template");
         return;
       }
-      setTemplates(templates.filter((t) => t.id !== id));
+      setTemplates((prev) => prev.filter((tmpl) => tmpl.id !== id));
+      // Sync prunes any future open slots that no longer match an active template.
+      await syncAvailability();
     } catch {
       setError("Failed to delete template");
-    }
-  }
-
-  async function generateSlots() {
-    setGenerating(true);
-    setError(null);
-    try {
-      const supabase = createClient();
-      const userId = (await supabase.auth.getUser()).data.user!.id;
-
-      // Generate slots for next 14 days based on templates
-      const newSlots: { teacher_id: string; start_at: string; end_at: string }[] = [];
-
-      for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
-        const date = new Date();
-        date.setDate(date.getDate() + dayOffset);
-        const dayOfWeek = date.getDay();
-
-        const dayTemplates = templates.filter((t) => t.day_of_week === dayOfWeek);
-
-        for (const template of dayTemplates) {
-          const [startH, startM] = template.start_time.split(":").map(Number);
-          const [endH, endM] = template.end_time.split(":").map(Number);
-
-          let currentMinutes = startH * 60 + startM;
-          const endMinutes = endH * 60 + endM;
-          const slotDuration = 15;
-          const buffer = template.buffer_minutes;
-
-          while (currentMinutes + slotDuration <= endMinutes) {
-            const slotStart = new Date(date);
-            slotStart.setHours(Math.floor(currentMinutes / 60), currentMinutes % 60, 0, 0);
-
-            const slotEnd = new Date(slotStart);
-            slotEnd.setMinutes(slotEnd.getMinutes() + slotDuration);
-
-            // Only create future slots
-            if (slotStart.getTime() > Date.now()) {
-              newSlots.push({
-                teacher_id: userId,
-                start_at: slotStart.toISOString(),
-                end_at: slotEnd.toISOString(),
-              });
-            }
-
-            currentMinutes += slotDuration + buffer;
-          }
-        }
-      }
-
-      if (newSlots.length === 0) {
-        setError("No new slots to generate. Check that you have templates for upcoming days and that the times haven't passed yet.");
-        return;
-      }
-
-      // De-duplicate: check existing slots for this teacher in the date range
-      const rangeStart = newSlots[0].start_at;
-      const rangeEnd = newSlots[newSlots.length - 1].end_at;
-      const { data: existingSlots } = await supabase
-        .from("availability_slots")
-        .select("start_at")
-        .eq("teacher_id", userId)
-        .gte("start_at", rangeStart)
-        .lte("start_at", rangeEnd);
-
-      const existingSet = new Set(
-        (existingSlots ?? []).map((s: { start_at: string }) => s.start_at)
-      );
-      const uniqueSlots = newSlots.filter((s) => !existingSet.has(s.start_at));
-
-      if (uniqueSlots.length === 0) {
-        setError("All slots already exist for the next 14 days.");
-        return;
-      }
-
-      const { error: insertError } = await supabase
-        .from("availability_slots")
-        .insert(uniqueSlots as never[]);
-
-      if (insertError) {
-        setError("Failed to generate slots");
-      }
-
-      router.refresh();
-    } catch {
-      setError("Failed to generate slots");
-    } finally {
-      setGenerating(false);
     }
   }
 
@@ -203,7 +206,9 @@ export function ScheduleClient({ templates: initialTemplates, slots: initialSlot
         .from("availability_slots")
         .update({ status: newStatus } as never)
         .eq("id", slotId);
-      setSlots(slots.map((s) => (s.id === slotId ? { ...s, status: newStatus as SlotStatus } : s)));
+      setSlots((prev) =>
+        prev.map((s) => (s.id === slotId ? { ...s, status: newStatus as SlotStatus } : s))
+      );
     } finally {
       setTogglingSlot(null);
     }
@@ -212,7 +217,7 @@ export function ScheduleClient({ templates: initialTemplates, slots: initialSlot
   // Group templates by day
   const templatesByDay: Record<number, TemplateItem[]> = {};
   for (let d = 0; d < 7; d++) {
-    templatesByDay[d] = templates.filter((t) => t.day_of_week === d);
+    templatesByDay[d] = templates.filter((tmpl) => tmpl.day_of_week === d);
   }
 
   return (
@@ -312,23 +317,29 @@ export function ScheduleClient({ templates: initialTemplates, slots: initialSlot
         ))}
       </div>
 
-      {/* Generate Slots */}
-      <button
-        onClick={generateSlots}
-        disabled={generating || templates.length === 0}
-        className={cn(
-          "w-full flex items-center justify-center gap-2 py-3 rounded-xl",
-          "bg-gold text-white font-semibold text-sm",
-          "hover:bg-gold/90 transition disabled:opacity-50"
+      {/* Sync Slots */}
+      <div className="space-y-2">
+        <button
+          onClick={syncAvailability}
+          disabled={syncing || templates.length === 0}
+          className={cn(
+            "w-full flex items-center justify-center gap-2 py-3 rounded-xl",
+            "bg-gold text-white font-semibold text-sm",
+            "hover:bg-gold/90 transition disabled:opacity-50"
+          )}
+        >
+          {syncing ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
+          {t("schedule.generate")}
+        </button>
+        <p className="text-xs text-text-muted text-center">{t("schedule.syncHint")}</p>
+        {lastSync && !syncing && (
+          <p className="text-xs text-emerald-400 text-center">
+            {t("schedule.synced")} {t("schedule.syncedDetail")
+              .replace("{created}", String(lastSync.created))
+              .replace("{pruned}", String(lastSync.pruned))}
+          </p>
         )}
-      >
-        {generating ? (
-          <Loader2 size={18} className="animate-spin" />
-        ) : (
-          <Zap size={18} />
-        )}
-        {t("schedule.generate")}
-      </button>
+      </div>
 
       {/* Error */}
       {error && (
@@ -392,7 +403,13 @@ export function ScheduleClient({ templates: initialTemplates, slots: initialSlot
                               : "text-text-muted bg-white/5"
                       )}
                     >
-                      {slot.status === "open" ? t("schedule.open") : slot.status === "booked" ? t("schedule.booked") : slot.status === "blocked" ? t("schedule.blocked") : t("schedule.held")}
+                      {slot.status === "open"
+                        ? t("schedule.open")
+                        : slot.status === "booked"
+                          ? t("schedule.booked")
+                          : slot.status === "blocked"
+                            ? t("schedule.blocked")
+                            : t("schedule.held")}
                     </span>
                     {(slot.status === "open" || slot.status === "blocked") && (
                       <button

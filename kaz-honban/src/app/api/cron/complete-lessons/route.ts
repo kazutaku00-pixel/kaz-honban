@@ -17,20 +17,38 @@ export async function GET(request: NextRequest) {
     if (unauthorized) return unauthorized;
 
     const supabase = createServiceRoleClient();
-    const now = new Date().toISOString();
+    const nowMs = Date.now();
+    // Match the join endpoint: a participant can rejoin until end + 30 min.
+    // For anything still in_session, we wait out that grace window before
+    // sweeping to completed, otherwise a network drop right before the end
+    // would prevent the user from rejoining for the last few seconds.
+    const JOIN_GRACE_AFTER_END_MS = 30 * 60 * 1000;
+    const inSessionCutoff = new Date(nowMs - JOIN_GRACE_AFTER_END_MS).toISOString();
+    const noShowCutoff = new Date(nowMs).toISOString();
 
     // Sweep anything past its end time that still shows as live.
-    // - in_session past end → completed
-    // - confirmed past end with a daily_room (they actually joined) → completed
-    // - confirmed past end with no daily_room (nobody joined) → no_show
-    //   This covers any booking missed by the check-no-shows cron.
-    const { data: bookingsRaw, error: fetchError } = await supabase
-      .from("bookings")
-      .select(
-        "id, status, learner_id, teacher_id, daily_room:daily_rooms(id)"
-      )
-      .in("status", ["confirmed", "in_session"])
-      .lt("scheduled_end_at", now);
+    //   - in_session past end + grace        → completed
+    //   - confirmed past end + grace + joined → completed (rare; most paths flip to in_session)
+    //   - confirmed past end with no daily_room → no_show
+    //     (also covered by check-no-shows; redundancy is intentional)
+    const [
+      { data: inSessionRaw, error: inSessionError },
+      { data: confirmedRaw, error: confirmedError },
+    ] = await Promise.all([
+      supabase
+        .from("bookings")
+        .select("id, status, learner_id, teacher_id, daily_room:daily_rooms(id)")
+        .eq("status", "in_session")
+        .lt("scheduled_end_at", inSessionCutoff),
+      supabase
+        .from("bookings")
+        .select("id, status, learner_id, teacher_id, daily_room:daily_rooms(id)")
+        .eq("status", "confirmed")
+        .lt("scheduled_end_at", noShowCutoff),
+    ]);
+
+    const fetchError = inSessionError ?? confirmedError;
+    const bookingsRaw = [...(inSessionRaw ?? []), ...(confirmedRaw ?? [])];
 
     if (fetchError) {
       console.error("complete-lessons fetch error:", fetchError);

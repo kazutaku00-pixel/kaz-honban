@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -94,10 +94,11 @@ export function AvailableSlots({
   const showDualTimezone = !!teacherTimezone && teacherTimezone !== userTz;
 
   const allDays = useMemo(() => getNextDays(), []);
+  const didAutoScrollRef = useRef(false);
 
-  useEffect(() => {
-    async function fetchSlots() {
-      setLoading(true);
+  const fetchSlots = useCallback(
+    async (opts?: { withSpinner?: boolean }) => {
+      if (opts?.withSpinner !== false) setLoading(true);
       const supabase = createClient();
 
       const startOfRange = allDays[0].toISOString();
@@ -121,13 +122,9 @@ export function AvailableSlots({
       // per start_at so the UI never shows "12:00 PM" eleven times.
       const bySlot = new Map<string, AvailabilitySlot>();
       for (const s of raw) {
-        // Key by start_at + end_at so genuinely distinct slots (shouldn't
-        // happen for one teacher, but just in case) still render separately.
         const key = `${s.start_at}|${s.end_at}`;
         if (!bySlot.has(key)) bySlot.set(key, s);
       }
-      // Also collapse slots whose display minute is identical within the same
-      // day — catches near-duplicates that differ only by seconds.
       const byDisplay = new Map<string, AvailabilitySlot>();
       for (const s of bySlot.values()) {
         const d = new Date(s.start_at);
@@ -148,17 +145,17 @@ export function AvailableSlots({
 
       const bookable = deduped.filter((s) => {
         if (new Date(s.start_at).getTime() < leadCutoff) return false;
-        // Slot already covers 30 min on its own
         if (new Date(s.end_at).getTime() >= new Date(lessonEndsAt(s)).getTime()) return true;
-        // Otherwise require a consecutive open slot
         return openStartTimes.has(s.end_at);
       });
 
       setSlots(bookable);
       setLoading(false);
 
-      // Auto-scroll day window to the first available day
-      if (bookable.length > 0) {
+      // Auto-scroll the day window to the first available day, but only
+      // on the initial load — otherwise a realtime refetch could yank
+      // the user out of the day they're browsing.
+      if (!didAutoScrollRef.current && bookable.length > 0) {
         const firstSlotTime = new Date(bookable[0].start_at).getTime();
         const firstAvailableDayIdx = allDays.findIndex((d) => {
           const dayStart = d.getTime();
@@ -172,10 +169,52 @@ export function AvailableSlots({
           );
           setDayOffset(windowStart);
         }
+        didAutoScrollRef.current = true;
+      }
+    },
+    [teacherId, allDays]
+  );
+
+  // Initial fetch + Supabase realtime subscription so the booking grid
+  // reflects teacher schedule edits, blocks, generations, and other
+  // learners' bookings without requiring a manual reload.
+  useEffect(() => {
+    void fetchSlots();
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`teacher-slots-${teacherId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "availability_slots",
+          filter: `teacher_id=eq.${teacherId}`,
+        },
+        () => {
+          void fetchSlots({ withSpinner: false });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [teacherId, fetchSlots]);
+
+  // Refetch when the tab becomes visible again — covers users who left
+  // the tab open overnight, plus mobile Safari which sometimes drops
+  // the realtime websocket on backgrounding.
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible") {
+        void fetchSlots({ withSpinner: false });
       }
     }
-    fetchSlots();
-  }, [teacherId, allDays]);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [fetchSlots]);
 
   const nextSlotId = slots[0]?.id;
 

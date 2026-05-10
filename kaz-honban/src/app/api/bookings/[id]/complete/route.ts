@@ -49,15 +49,28 @@ export async function POST(
       );
     }
 
-    const { error: updateError } = await supabase
+    // Guard against stale-read races: only flip in_session → completed.
+    // If the cron beat us to it (or another tab fired the same request),
+    // matching 0 rows means we should bail out instead of overwriting a
+    // cancelled / no_show row.
+    const { data: updatedRows, error: updateError } = await supabase
       .from("bookings")
       .update({ status: "completed" } as never)
-      .eq("id", bookingId);
+      .eq("id", bookingId)
+      .eq("status", "in_session")
+      .select("id");
 
     if (updateError) {
       return NextResponse.json(
         { error: "Failed to complete booking" },
         { status: 500 }
+      );
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      return NextResponse.json(
+        { error: "Booking is no longer in session" },
+        { status: 409 }
       );
     }
 
