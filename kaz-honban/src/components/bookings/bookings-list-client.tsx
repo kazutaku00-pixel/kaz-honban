@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import {
   Calendar,
   Clock,
@@ -75,11 +76,62 @@ export function BookingsListClient({
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
 
-  // Refresh `now` every 30s so isJoinable stays accurate
+  // Tick the clock every 15s so isJoinable flips on without a page reload.
+  // 15s is short enough that the "Join Room" button appears within seconds
+  // of the join window opening, but long enough not to thrash re-renders.
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30_000);
+    const id = setInterval(() => setNow(new Date()), 15_000);
     return () => clearInterval(id);
   }, []);
+
+  // Realtime: when any booking that this user is a party to changes
+  // (the other side cancels, the cron flips status, the join endpoint
+  // moves a row to in_session, etc.), pull a fresh server render so the
+  // list reflects the new state without a manual reload.
+  //
+  // We use two filtered subscriptions because postgres_changes does not
+  // accept an OR on its filter. Both fire router.refresh() — Next 15
+  // dedupes the resulting RSC fetches.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`my-bookings-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "bookings",
+          filter: `learner_id=eq.${userId}`,
+        },
+        () => router.refresh()
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "bookings",
+          filter: `teacher_id=eq.${userId}`,
+        },
+        () => router.refresh()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, router]);
+
+  // Re-pull on tab focus so users who left the tab open get fresh data
+  // even if the realtime websocket dropped (mobile Safari, etc.).
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible") router.refresh();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [router]);
 
   const upcoming = bookings.filter(
     (b) =>

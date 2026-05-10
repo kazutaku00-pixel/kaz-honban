@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 import {
   ArrowLeft,
   Calendar,
@@ -71,7 +72,55 @@ export function TeacherBookingsClient({ bookings }: { bookings: BookingItem[] })
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const now = new Date();
+  // `now` was previously a non-reactive `new Date()` set once at first
+  // render, which froze isJoinable forever — a teacher who loaded the page
+  // 30 minutes before a lesson would never see the "Start Lesson" button
+  // appear without manually reloading. Tick every 15s instead.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 15_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Realtime: refresh server data when a learner books, cancels, or the
+  // crons flip a row to in_session / completed / no_show.
+  useEffect(() => {
+    let cancelled = false;
+    const supabase = createClient();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (cancelled || !user) return;
+      channel = supabase
+        .channel(`teacher-my-bookings-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "bookings",
+            filter: `teacher_id=eq.${user.id}`,
+          },
+          () => router.refresh()
+        )
+        .subscribe();
+    })();
+
+    return () => {
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [router]);
+
+  // Re-pull on tab focus to recover from dropped realtime sockets.
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible") router.refresh();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [router]);
 
   const upcoming = bookings.filter(
     (b) =>
