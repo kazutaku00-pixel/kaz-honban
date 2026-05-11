@@ -8,7 +8,7 @@ export default function GlobalError({
 }) {
   return (
     <html lang="en">
-      <body className="bg-[#0a0a0a]">
+      <body className="bg-bg-primary">
         <div className="min-h-screen flex items-center justify-center px-4">
           <div className="max-w-md w-full text-center space-y-6">
             <div className="mx-auto w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center">
@@ -39,7 +39,7 @@ export default function GlobalError({
             </div>
             <button
               onClick={reset}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#FF6B4A] text-white font-semibold text-sm hover:bg-[#FF6B4A]/90 transition"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-accent text-white font-semibold text-sm hover:bg-accent/90 transition"
             >
               Try Again
             </button>

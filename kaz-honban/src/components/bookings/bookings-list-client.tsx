@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -69,10 +69,20 @@ export function BookingsListClient({
   fetchError,
 }: BookingsListClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [chatOpenId, setChatOpenId] = useState<string | null>(null);
+
+  // ?chat=<bookingId> auto-opens the chat panel — used by new-message
+  // notifications so tapping the bell jumps straight into the conversation.
+  useEffect(() => {
+    const chat = searchParams.get("chat");
+    if (chat && bookings.some((b) => b.id === chat)) {
+      setChatOpenId(chat);
+    }
+  }, [searchParams, bookings]);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
 
@@ -221,7 +231,7 @@ export function BookingsListClient({
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div className="min-h-screen bg-bg-primary text-white">
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
@@ -243,7 +253,7 @@ export function BookingsListClient({
               className={cn(
                 "flex-1 py-3 rounded-xl font-medium text-sm transition",
                 activeTab === tab
-                  ? "bg-[#FF6B4A] text-white"
+                  ? "bg-accent text-white"
                   : "bg-white/5 text-gray-400 hover:bg-white/10"
               )}
             >
@@ -276,7 +286,7 @@ export function BookingsListClient({
             {activeTab === "upcoming" && (
               <button
                 onClick={() => router.push("/")}
-                className="mt-2 px-6 py-2.5 rounded-xl bg-[#FF6B4A] text-white font-medium text-sm hover:bg-[#FF6B4A]/90 transition"
+                className="mt-2 px-6 py-2.5 rounded-xl bg-accent text-white font-medium text-sm hover:bg-accent/90 transition"
               >
                 Find a teacher
               </button>
@@ -306,8 +316,8 @@ export function BookingsListClient({
                           className="w-10 h-10 rounded-full object-cover border border-white/10"
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-[#FF6B4A]/20 flex items-center justify-center">
-                          <User className="w-5 h-5 text-[#FF6B4A]" />
+                        <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
+                          <User className="w-5 h-5 text-accent" />
                         </div>
                       )}
                       <div>
@@ -367,20 +377,20 @@ export function BookingsListClient({
                     return (
                       <div className="rounded-xl bg-white/[0.03] border border-white/5 p-3 space-y-2.5">
                         <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                          <Sparkles className="w-3.5 h-3.5 text-[#FF6B4A]" />
+                          <Sparkles className="w-3.5 h-3.5 text-accent" />
                           <span className="font-medium">{label} — prepare for your lesson</span>
                         </div>
                         <ul className="space-y-1.5 text-xs text-gray-300">
                           <li className="flex items-start gap-2">
-                            <Target className="w-3.5 h-3.5 text-[#FF6B4A] shrink-0 mt-0.5" />
+                            <Target className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
                             <span>Write down 1–2 things you want to practice today</span>
                           </li>
                           <li className="flex items-start gap-2">
-                            <Mic className="w-3.5 h-3.5 text-[#FF6B4A] shrink-0 mt-0.5" />
+                            <Mic className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
                             <span>Test your mic and camera in a quiet place</span>
                           </li>
                           <li className="flex items-start gap-2">
-                            <NotebookPen className="w-3.5 h-3.5 text-[#FF6B4A] shrink-0 mt-0.5" />
+                            <NotebookPen className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
                             <span>Have a notebook or document ready for notes</span>
                           </li>
                         </ul>
@@ -398,8 +408,8 @@ export function BookingsListClient({
                             disabled={joiningId === booking.id}
                             className={cn(
                               "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl",
-                              "bg-[#FF6B4A] text-white font-medium text-sm",
-                              "hover:bg-[#FF6B4A]/90 transition",
+                              "bg-accent text-white font-medium text-sm",
+                              "hover:bg-accent/90 transition",
                               "disabled:opacity-50"
                             )}
                           >
@@ -466,8 +476,8 @@ export function BookingsListClient({
                             }
                             className={cn(
                               "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl",
-                              "bg-[#FF6B4A]/10 text-[#FF6B4A] font-medium text-sm",
-                              "hover:bg-[#FF6B4A]/20 transition"
+                              "bg-accent/10 text-accent font-medium text-sm",
+                              "hover:bg-accent/20 transition"
                             )}
                           >
                             <Star className="w-4 h-4" />

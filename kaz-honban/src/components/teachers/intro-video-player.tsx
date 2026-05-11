@@ -11,9 +11,9 @@ interface IntroVideoPlayerProps {
 
 export function IntroVideoPlayer({ src, youtubeId }: IntroVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [muted, setMuted] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(false);
 
   // Direct video: autoplay muted when visible
   useEffect(() => {
@@ -27,10 +27,8 @@ export function IntroVideoPlayer({ src, youtubeId }: IntroVideoPlayerProps) {
       ([entry]) => {
         if (entry.isIntersecting) {
           video.play().catch(() => {});
-          setIsPlaying(true);
         } else {
           video.pause();
-          setIsPlaying(false);
         }
       },
       { threshold: 0.5 }
@@ -41,23 +39,49 @@ export function IntroVideoPlayer({ src, youtubeId }: IntroVideoPlayerProps) {
   }, [youtubeId]);
 
   const toggleMute = () => {
+    // Direct <video>
     if (videoRef.current) {
       videoRef.current.muted = !muted;
-      setMuted(!muted);
     }
+    // YouTube iframe — postMessage works because we enabled jsapi on the embed.
+    if (iframeRef.current?.contentWindow) {
+      const command = muted ? "unMute" : "mute";
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: "command", func: command, args: [] }),
+        "*"
+      );
+    }
+    setMuted(!muted);
   };
 
-  // YouTube embed with autoplay muted
+  // YouTube embed with autoplay muted + JS API for mute toggle
   if (youtubeId) {
+    const ytSrc =
+      `https://www.youtube-nocookie.com/embed/${youtubeId}` +
+      `?autoplay=1&mute=1&loop=1&playlist=${youtubeId}` +
+      `&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&origin=${typeof window !== "undefined" ? encodeURIComponent(window.location.origin) : ""}`;
     return (
-      <div className="aspect-video rounded-2xl overflow-hidden border border-border">
+      <div className="relative aspect-video rounded-2xl overflow-hidden border border-border">
         <iframe
-          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}`}
+          ref={iframeRef}
+          src={ytSrc}
           title="Teacher introduction video"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
           className="w-full h-full"
         />
+        <button
+          type="button"
+          onClick={toggleMute}
+          className={cn(
+            "absolute bottom-3 right-3 p-2 rounded-full transition-colors",
+            "bg-black/60 backdrop-blur-sm hover:bg-black/80",
+            "text-white"
+          )}
+          aria-label={muted ? "Unmute" : "Mute"}
+        >
+          {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+        </button>
       </div>
     );
   }

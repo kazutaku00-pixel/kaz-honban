@@ -60,6 +60,14 @@ export default async function ReviewPage({
     .eq("reviewer_id", user.id)
     .single();
 
+  // Already favorited? — drives the save-teacher heart's initial state.
+  const { data: existingFavorite } = await supabase
+    .from("favorites")
+    .select("id")
+    .eq("learner_id", user.id)
+    .eq("teacher_id", booking.teacher_id)
+    .maybeSingle();
+
   // Teacher's next 3 available slots for rebooking
   const { data: slotsRaw } = await supabase
     .from("availability_slots")
@@ -72,6 +80,13 @@ export default async function ReviewPage({
 
   const nextSlots = (slotsRaw ?? []) as unknown as AvailabilitySlot[];
 
+  // Total review count across the platform — fuels the "you helped grow" line
+  // on the thank-you screen.
+  const { count: totalReviewsCount } = await supabase
+    .from("reviews")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "published");
+
   return (
     <ReviewFormClient
       booking={{
@@ -82,6 +97,8 @@ export default async function ReviewPage({
         teacher_headline: teacherProfile?.headline ?? null,
       }}
       alreadyReviewed={!!existingReview}
+      initialFavorited={!!existingFavorite}
+      totalReviewsCount={totalReviewsCount ?? 0}
       nextSlots={nextSlots.map((s) => ({
         id: s.id,
         start_at: s.start_at,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -18,6 +19,7 @@ interface Notification {
 
 export function NotificationBell() {
   const { user } = useUser();
+  const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -123,11 +125,14 @@ export function NotificationBell() {
 
   const handleClick = useCallback((n: Notification) => {
     if (!n.is_read) markAsRead(n.id);
-    if (n.link) {
-      window.location.href = n.link;
-    }
     setOpen(false);
-  }, [markAsRead]);
+    if (n.link) {
+      // SPA navigation — window.location.href causes a full reload that on
+      // mobile Safari can drop the dropdown's onClick before the navigation
+      // resolves, making the "view" button feel dead.
+      router.push(n.link);
+    }
+  }, [markAsRead, router]);
 
   function timeAgo(iso: string) {
     const diff = Date.now() - new Date(iso).getTime();
@@ -155,7 +160,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto rounded-xl bg-bg-secondary border border-border shadow-2xl z-50">
+        <div className="absolute right-0 top-full mt-2 w-[22rem] max-w-[calc(100vw-1.5rem)] max-h-[28rem] overflow-y-auto rounded-xl bg-bg-secondary border border-border shadow-2xl z-50">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <h3 className="text-sm font-semibold text-text-primary">
               Notifications
@@ -194,7 +199,7 @@ export function NotificationBell() {
                     <div className="flex-1 min-w-0">
                       <p
                         className={cn(
-                          "text-sm truncate",
+                          "text-sm line-clamp-2 leading-snug",
                           n.is_read
                             ? "text-text-secondary"
                             : "text-text-primary font-medium"
@@ -202,7 +207,7 @@ export function NotificationBell() {
                       >
                         {n.title}
                       </p>
-                      <p className="text-xs text-text-muted mt-0.5 line-clamp-2">
+                      <p className="text-xs text-text-muted mt-1 line-clamp-3 leading-snug break-words">
                         {n.message}
                       </p>
                     </div>

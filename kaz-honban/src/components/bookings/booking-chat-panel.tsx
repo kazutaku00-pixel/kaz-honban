@@ -133,25 +133,27 @@ export function BookingChatPanel({
     setSending(true);
     setError(null);
     try {
-      const supabase = createClient();
-      const { data, error: insertError } = await supabase
-        .from("messages")
-        .insert({
-          booking_id: bookingId,
-          sender_id: currentUserId,
-          body,
-        } as never)
-        .select()
-        .single();
-      if (insertError) {
-        setError(insertError.message);
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ booking_id: bookingId, body }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as { error?: string }));
+        setError(
+          data.error ??
+            (res.status === 401
+              ? "Please sign in again."
+              : res.status === 403
+                ? "You aren't part of this booking."
+                : "Couldn't send your message.")
+        );
         return;
       }
-      // Optimistic — append immediately even before the realtime echo arrives.
-      const fresh = data as unknown as ChatMessage;
+      const { message } = (await res.json()) as { message: ChatMessage };
       setMessages((prev) => {
-        if (prev.some((m) => m.id === fresh.id)) return prev;
-        return [...prev, fresh];
+        if (prev.some((m) => m.id === message.id)) return prev;
+        return [...prev, message];
       });
       setDraft("");
     } catch {
@@ -159,7 +161,7 @@ export function BookingChatPanel({
     } finally {
       setSending(false);
     }
-  }, [draft, sending, bookingId, currentUserId]);
+  }, [draft, sending, bookingId]);
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -275,7 +277,13 @@ export function BookingChatPanel({
           <textarea
             ref={inputRef}
             value={draft}
-            onChange={(e) => setDraft(e.target.value.slice(0, MAX_BODY_LENGTH))}
+            onChange={(e) => {
+              // Slice by grapheme units. Plain .slice() splits surrogate pairs
+              // (emoji, IVS, certain CJK characters) and produces tofu/garbage
+              // until the next keystroke. Array.from iterates code points.
+              const cp = Array.from(e.target.value);
+              setDraft(cp.length <= MAX_BODY_LENGTH ? e.target.value : cp.slice(0, MAX_BODY_LENGTH).join(""));
+            }}
             onKeyDown={onKeyDown}
             rows={1}
             placeholder="Type a message…"

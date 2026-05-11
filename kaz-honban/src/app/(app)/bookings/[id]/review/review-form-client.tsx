@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Star, ArrowRight, CheckCircle, Loader2 } from "lucide-react";
+import { Star, ArrowRight, CheckCircle, Loader2, Heart, Sparkles, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { REVIEW_TAGS } from "@/lib/validations";
@@ -20,12 +20,16 @@ interface ReviewFormClientProps {
     teacher_headline: string | null;
   };
   alreadyReviewed: boolean;
+  initialFavorited?: boolean;
+  totalReviewsCount?: number;
   nextSlots: { id: string; start_at: string; end_at: string }[];
 }
 
 export function ReviewFormClient({
   booking,
   alreadyReviewed,
+  initialFavorited = false,
+  totalReviewsCount = 0,
   nextSlots,
 }: ReviewFormClientProps) {
   const router = useRouter();
@@ -36,10 +40,59 @@ export function ReviewFormClient({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(alreadyReviewed);
   const [error, setError] = useState<string | null>(null);
+  const [favorited, setFavorited] = useState(initialFavorited);
+  const [savingFavorite, setSavingFavorite] = useState(false);
+  // High-rating reviews default the heart to ON so satisfied learners save the
+  // teacher with one tap — they can still untoggle. Phase 1's repeat-booking
+  // funnel hinges on this nudge.
+  const [favoriteAutoApplied, setFavoriteAutoApplied] = useState(false);
+
+  useEffect(() => {
+    if (!submitted) return;
+    if (favoriteAutoApplied) return;
+    if (rating < 4) return;
+    if (initialFavorited || favorited) return;
+    setFavoriteAutoApplied(true);
+    void toggleFavorite(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitted]);
 
   useUnsavedChanges(
     (rating > 0 || comment.length > 0 || selectedTags.length > 0) && !submitted
   );
+
+  async function toggleFavorite(nextOn: boolean) {
+    if (savingFavorite) return;
+    setSavingFavorite(true);
+    const previous = favorited;
+    setFavorited(nextOn);
+    try {
+      const res = await fetch("/api/favorites", {
+        method: nextOn ? "POST" : "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teacher_id: booking.teacher_id }),
+      });
+      // 409 on POST means already favorited — treat as success.
+      if (!res.ok && res.status !== 409) {
+        setFavorited(previous);
+      }
+    } catch {
+      setFavorited(previous);
+    } finally {
+      setSavingFavorite(false);
+    }
+  }
+
+  function handleShare() {
+    const text = `${booking.teacher_name}先生のレッスン最高だった！日本語マーケットプレイス NihonGo で予約できるよ ✨`;
+    const url = typeof window !== "undefined" ? `${window.location.origin}/teachers/${booking.teacher_id}` : "";
+    if (typeof navigator !== "undefined" && navigator.share) {
+      navigator.share({ title: "NihonGo", text, url }).catch(() => {});
+      return;
+    }
+    const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+    if (typeof window !== "undefined") window.open(intent, "_blank", "noopener,noreferrer");
+  }
 
   function toggleTag(value: string) {
     setSelectedTags((prev) => {
@@ -98,19 +151,96 @@ export function ReviewFormClient({
   }
 
   if (submitted) {
+    const showFavoriteCard = !alreadyReviewed;
     return (
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        <div className="bg-bg-secondary rounded-2xl border border-border p-8 text-center space-y-4">
-          <CheckCircle size={48} className="text-green-400 mx-auto" />
-          <h1 className="text-xl font-bold text-text-primary">
-            {alreadyReviewed ? "Already Reviewed" : "Thank you!"}
+        <div className="relative bg-bg-secondary rounded-2xl border border-border p-8 text-center space-y-4 overflow-hidden">
+          {!alreadyReviewed && (
+            <div className="pointer-events-none absolute inset-0" aria-hidden>
+              {/* Sparkle confetti — pure CSS, respects reduced-motion via globals.css */}
+              {[...Array(8)].map((_, i) => (
+                <span
+                  key={i}
+                  className="absolute block sparkle"
+                  style={{
+                    left: `${10 + i * 11}%`,
+                    top: `${20 + (i % 3) * 20}%`,
+                    animationDelay: `${i * 80}ms`,
+                  }}
+                >
+                  <Sparkles size={14} className="text-gold" />
+                </span>
+              ))}
+            </div>
+          )}
+          <CheckCircle size={48} className="text-green-400 mx-auto relative z-10" />
+          <h1 className="text-xl font-bold text-text-primary relative z-10">
+            {alreadyReviewed ? "Already Reviewed" : `ありがとう！⭐`}
           </h1>
-          <p className="text-sm text-text-muted">
-            {alreadyReviewed
-              ? "You have already left a review for this lesson."
-              : "Your review helps other learners find great teachers."}
+          <p className="text-sm text-text-muted relative z-10 leading-relaxed">
+            {alreadyReviewed ? (
+              "You have already left a review for this lesson."
+            ) : (
+              <>
+                Your review helps <span className="text-text-primary font-medium">{booking.teacher_name}</span> grow on NihonGo
+                {totalReviewsCount > 0 && (
+                  <>
+                    <br />
+                    <span className="text-xs">
+                      {totalReviewsCount.toLocaleString()}+ learners have supported teachers this way 💛
+                    </span>
+                  </>
+                )}
+              </>
+            )}
           </p>
+          {!alreadyReviewed && (
+            <button
+              type="button"
+              onClick={handleShare}
+              className="relative z-10 inline-flex items-center gap-1.5 text-xs text-accent hover:text-accent-hover transition mt-1"
+            >
+              <Share2 size={12} />
+              Share the love
+            </button>
+          )}
         </div>
+
+        {/* Save teacher — surfaces at the moment of highest satisfaction. */}
+        {showFavoriteCard && (
+          <button
+            type="button"
+            onClick={() => toggleFavorite(!favorited)}
+            disabled={savingFavorite}
+            className={cn(
+              "w-full flex items-center gap-4 p-4 rounded-2xl border transition text-left",
+              favorited
+                ? "bg-accent/10 border-accent/30"
+                : "bg-bg-secondary border-border hover:border-border-hover"
+            )}
+            aria-pressed={favorited}
+          >
+            <div
+              className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition",
+                favorited ? "bg-accent text-white" : "bg-white/5 text-text-muted"
+              )}
+            >
+              <Heart size={18} className={favorited ? "fill-current" : ""} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-text-primary">
+                {favorited ? "Saved to favorites" : "Save this teacher"}
+              </p>
+              <p className="text-xs text-text-muted mt-0.5">
+                {favorited
+                  ? `Tap again to remove ${booking.teacher_name}`
+                  : `Find ${booking.teacher_name} faster next time`}
+              </p>
+            </div>
+            {savingFavorite && <Loader2 size={16} className="animate-spin text-text-muted" />}
+          </button>
+        )}
 
         {/* Book again CTA */}
         {nextSlots.length > 0 && (

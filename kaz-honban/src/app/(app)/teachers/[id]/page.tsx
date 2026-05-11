@@ -12,6 +12,8 @@ import { TeacherDetailTabs } from "@/components/teachers/teacher-detail-tabs";
 import { IntroVideoPlayer } from "@/components/teachers/intro-video-player";
 import { TeacherShareButton } from "@/components/teachers/teacher-share-button";
 import { BackButton } from "@/components/teachers/back-button";
+import { TeacherBadgeRow } from "@/components/teachers/teacher-badges";
+import { tierBadge, achievementBadges } from "@/lib/teacher-badges";
 import { T } from "@/components/i18n-text";
 import type { TeacherWithProfile, Review, Profile } from "@/types/database";
 import type { Metadata } from "next";
@@ -150,6 +152,10 @@ export default async function TeacherDetailPage({ params }: PageProps) {
   const profile = t.profile;
   const initial = (profile.display_name ?? "?")[0].toUpperCase();
   const colorIdx = initial.charCodeAt(0) % avatarColors.length;
+
+  const teacherTier = tierBadge(t.total_lessons);
+  const teacherAchievements = achievementBadges(t);
+  const allBadges = [...(teacherTier ? [teacherTier] : []), ...teacherAchievements];
 
   // Determine video type
   const hasDirectVideo = t.intro_video_url ? isDirectVideo(t.intro_video_url) : false;
@@ -489,6 +495,9 @@ export default async function TeacherDetailPage({ params }: PageProps) {
                         Verified
                       </span>
                     </div>
+                    {allBadges.length > 0 && (
+                      <TeacherBadgeRow badges={allBadges} size="sm" className="mt-1.5" />
+                    )}
                     {t.languages.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {t.languages.map((lang) => (
@@ -586,6 +595,9 @@ export default async function TeacherDetailPage({ params }: PageProps) {
                     Verified
                   </span>
                 </div>
+                {allBadges.length > 0 && (
+                  <TeacherBadgeRow badges={allBadges} size="sm" className="mt-2" />
+                )}
                 {t.languages.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {t.languages.map((lang) => (

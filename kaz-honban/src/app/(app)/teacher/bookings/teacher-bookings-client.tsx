@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,10 +19,18 @@ import {
   Sparkles,
   MessageSquare,
   Globe,
+  Gauge,
+  ListChecks,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import type { BookingStatus, JapaneseLevel } from "@/types/database";
+import {
+  decodePreferences,
+  paceLabel,
+  correctionLabel,
+  focusLabel,
+} from "@/lib/lesson-preferences";
 
 const STATUS_STYLES: Record<BookingStatus, string> = {
   confirmed: "bg-blue-500/20 text-blue-400 border-blue-500/30",
@@ -81,6 +89,31 @@ export function TeacherBookingsClient({ bookings }: { bookings: BookingItem[] })
     const id = setInterval(() => setNow(new Date()), 15_000);
     return () => clearInterval(id);
   }, []);
+
+  // Auto-expand the very next upcoming lesson so the teacher sees prep notes
+  // without an extra tap — by far the most common reason they open this page.
+  const nextUpcomingId = useMemo(() => {
+    const sorted = [...bookings]
+      .filter(
+        (b) =>
+          (b.status === "confirmed" || b.status === "in_session") &&
+          new Date(b.scheduled_end_at) >= now
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.scheduled_start_at).getTime() -
+          new Date(b.scheduled_start_at).getTime()
+      );
+    return sorted[0]?.id ?? null;
+  }, [bookings, now]);
+
+  useEffect(() => {
+    if (nextUpcomingId && expandedId === null) {
+      setExpandedId(nextUpcomingId);
+    }
+    // Only seed once per next-lesson cycle; subsequent collapses are honored.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextUpcomingId]);
 
   // Realtime: refresh server data when a learner books, cancels, or the
   // crons flip a row to in_session / completed / no_show.
@@ -257,6 +290,13 @@ export function TeacherBookingsClient({ bookings }: { bookings: BookingItem[] })
                 {/* Learner pre-lesson info */}
                 {activeTab === "upcoming" && (booking.learner_level || booking.learner_goals || booking.learner_interests?.length || booking.learner_note) && (() => {
                   const isOpen = expandedId === booking.id;
+                  const prefs = decodePreferences(booking.learner_note);
+                  const hasPrefs =
+                    !!prefs &&
+                    (!!prefs.pace ||
+                      !!prefs.correction ||
+                      (prefs.focus && prefs.focus.length > 0));
+                  const noteText = prefs?.note?.trim() || null;
                   return (
                     <div className="pt-2 border-t border-border">
                       <button
@@ -306,12 +346,39 @@ export function TeacherBookingsClient({ bookings }: { bookings: BookingItem[] })
                               </p>
                             </div>
                           )}
-                          {booking.learner_note && (
+                          {hasPrefs && (
+                            <div className="space-y-2 pt-1 border-t border-border/40">
+                              <p className="font-medium text-text-secondary text-[11px] uppercase tracking-wider">
+                                Lesson preferences
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {prefs?.pace && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-accent-subtle text-accent text-[10px] font-medium">
+                                    <Gauge size={10} />
+                                    {paceLabel(prefs.pace)}
+                                  </span>
+                                )}
+                                {prefs?.correction && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gold-subtle text-gold text-[10px] font-medium">
+                                    <ListChecks size={10} />
+                                    {correctionLabel(prefs.correction)}
+                                  </span>
+                                )}
+                                {prefs?.focus?.map((f) => (
+                                  <span key={f} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 text-[10px] font-medium">
+                                    <Target size={10} />
+                                    {focusLabel(f)}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {noteText && (
                             <div className="flex gap-2">
                               <MessageSquare size={12} className="text-sky-400 shrink-0 mt-0.5" />
                               <div>
                                 <p className="font-medium text-text-secondary">Note from student</p>
-                                <p className="text-text-muted whitespace-pre-line">{booking.learner_note}</p>
+                                <p className="text-text-muted whitespace-pre-line">{noteText}</p>
                               </div>
                             </div>
                           )}

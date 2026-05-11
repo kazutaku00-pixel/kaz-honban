@@ -7,6 +7,8 @@ import { Star, Heart, Play, BadgeCheck, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { languageFlag } from "@/lib/validations";
+import { topBadges } from "@/lib/teacher-badges";
+import { TeacherBadgeRow } from "./teacher-badges";
 import type { TeacherWithProfile } from "@/types/database";
 
 const avatarColors = [
@@ -156,6 +158,17 @@ export function TeacherCard({
             </span>
           </div>
         )}
+
+        {/* Top achievement badges — bottom-left so they don't fight with NEW or favorite */}
+        {(() => {
+          const badges = topBadges(teacher, 2);
+          if (badges.length === 0) return null;
+          return (
+            <div className="absolute bottom-2.5 left-2.5 z-10">
+              <TeacherBadgeRow badges={badges} size="sm" />
+            </div>
+          );
+        })()}
 
         {/* Favorite button */}
         <button

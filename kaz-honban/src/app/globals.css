@@ -5,8 +5,10 @@
   --color-bg-secondary: #141414;
   --color-bg-tertiary: #1e1e1e;
   --color-text-primary: #fafafa;
-  --color-text-secondary: #a1a1a1;
-  --color-text-muted: #6b6b6b;
+  --color-text-secondary: #b4b4b4;
+  /* Lifted from #6b6b6b to clear WCAG AA on dark bg (4.5:1) — the old value
+     was below threshold and made small text feel mushy. */
+  --color-text-muted: #8a8a8a;
   --color-accent: #FF6B4A;
   --color-accent-hover: #FF8566;
   --color-accent-subtle: rgba(255, 107, 74, 0.1);
@@ -14,6 +16,17 @@
   --color-gold-subtle: rgba(196, 169, 98, 0.1);
   --color-border: rgba(255, 255, 255, 0.08);
   --color-border-hover: rgba(255, 255, 255, 0.15);
+
+  /* Semantic status tokens — use these instead of ad-hoc emerald/amber/red
+     hex literals so success/warning/danger stay consistent across the app. */
+  --color-success: #10B981;
+  --color-success-subtle: rgba(16, 185, 129, 0.12);
+  --color-warning: #F59E0B;
+  --color-warning-subtle: rgba(245, 158, 11, 0.12);
+  --color-danger: #EF4444;
+  --color-danger-subtle: rgba(239, 68, 68, 0.12);
+  --color-info: #38BDF8;
+  --color-info-subtle: rgba(56, 189, 248, 0.12);
 
   --font-display: "Clash Display", "Plus Jakarta Sans", system-ui, sans-serif;
   --font-body: "Plus Jakarta Sans", system-ui, sans-serif;
@@ -52,7 +65,8 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-float,
   .animate-fade-slide-up,
-  .animate-shimmer {
+  .animate-shimmer,
+  .sparkle {
     animation: none !important;
   }
   .reveal {
@@ -62,10 +76,23 @@
   }
 }
 
+/* Post-review sparkle */
+@keyframes sparklePop {
+  0% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+  40% { opacity: 1; transform: scale(1.1) rotate(15deg); }
+  100% { opacity: 0; transform: scale(0.6) translateY(-10px) rotate(30deg); }
+}
+.sparkle {
+  animation: sparklePop 1.6s ease-out forwards;
+  opacity: 0;
+}
+
 body {
   background-color: #0a0a0a;
   color: #fafafa;
-  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  /* CJK fallbacks come AFTER the Latin display face so Japanese characters
+     pick up a font that actually has the glyph instead of a tofu/⬜ box. */
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "Meiryo", "Noto Sans JP", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

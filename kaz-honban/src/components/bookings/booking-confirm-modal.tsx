@@ -316,7 +316,7 @@ export function BookingConfirmModal({
                 disabled={cancellingOverlap}
                 className={cn(
                   "w-full py-3 rounded-xl text-sm font-medium transition",
-                  "bg-[#FF6B4A] hover:bg-[#FF6B4A]/90 text-white",
+                  "bg-accent hover:bg-accent/90 text-white",
                   "disabled:opacity-50 flex items-center justify-center gap-2"
                 )}
               >
@@ -342,11 +342,11 @@ export function BookingConfirmModal({
                   alt={teacherName}
                   width={56}
                   height={56}
-                  className="w-14 h-14 rounded-full object-cover border-2 border-[#FF6B4A]/30"
+                  className="w-14 h-14 rounded-full object-cover border-2 border-accent/30"
                 />
               ) : (
-                <div className="w-14 h-14 rounded-full bg-[#FF6B4A]/20 flex items-center justify-center">
-                  <User className="w-7 h-7 text-[#FF6B4A]" />
+                <div className="w-14 h-14 rounded-full bg-accent/20 flex items-center justify-center">
+                  <User className="w-7 h-7 text-accent" />
                 </div>
               )}
               <div className="min-w-0">
@@ -364,18 +364,18 @@ export function BookingConfirmModal({
               </h4>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-3">
-                  <Calendar className="w-4 h-4 text-[#FF6B4A]" />
+                  <Calendar className="w-4 h-4 text-accent" />
                   <span>{formattedDate}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Clock className="w-4 h-4 text-[#FF6B4A]" />
+                  <Clock className="w-4 h-4 text-accent" />
                   <span>
                     {formattedStartTime} - {formattedEndTime} ({durationMinutes} min)
                     <span className="text-xs text-gray-500 ml-1">{tzShort}</span>
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Sparkles className="w-4 h-4 text-[#FF6B4A]" />
+                  <Sparkles className="w-4 h-4 text-accent" />
                   {isBeta ? (
                     <span className="text-green-400 font-medium">Free during beta</span>
                   ) : (
@@ -404,7 +404,7 @@ export function BookingConfirmModal({
                       className={cn(
                         "px-3 py-1.5 rounded-full text-xs font-medium border transition",
                         pace === opt.value
-                          ? "bg-[#FF6B4A] border-[#FF6B4A] text-white"
+                          ? "bg-accent border-accent text-white"
                           : "bg-white/5 border-white/10 text-gray-300 hover:border-white/20"
                       )}
                     >
@@ -427,7 +427,7 @@ export function BookingConfirmModal({
                       className={cn(
                         "px-3 py-1.5 rounded-full text-xs font-medium border transition",
                         correction === opt.value
-                          ? "bg-[#FF6B4A] border-[#FF6B4A] text-white"
+                          ? "bg-accent border-accent text-white"
                           : "bg-white/5 border-white/10 text-gray-300 hover:border-white/20"
                       )}
                     >
@@ -472,7 +472,7 @@ export function BookingConfirmModal({
                   type="checkbox"
                   checked={encouragement}
                   onChange={(e) => setEncouragement(e.target.checked)}
-                  className="accent-[#FF6B4A]"
+                  className="accent-accent"
                 />
                 Encourage me — I&apos;m nervous about speaking.
               </label>
@@ -495,7 +495,7 @@ export function BookingConfirmModal({
                 className={cn(
                   "w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-sm",
                   "placeholder-gray-500 resize-none",
-                  "focus:outline-none focus:ring-2 focus:ring-[#FF6B4A]/50 focus:border-[#FF6B4A]/50 transition"
+                  "focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition"
                 )}
               />
               <p className="text-xs text-gray-500 text-right">{learnerNote.length}/500</p>
@@ -512,7 +512,7 @@ export function BookingConfirmModal({
               disabled={isLoading || !learnerId}
               className={cn(
                 "w-full py-3.5 rounded-xl font-semibold text-base transition",
-                "bg-[#FF6B4A] hover:bg-[#FF6B4A]/90 text-white",
+                "bg-accent hover:bg-accent/90 text-white",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
                 "flex items-center justify-center gap-2"
               )}

@@ -194,7 +194,7 @@ export function BookingConfirmClient({
 
   if (isConfirmed) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
         <div className="text-center space-y-4">
           <div className="mx-auto w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center">
             <CheckCircle className="w-8 h-8 text-green-400" />
@@ -207,7 +207,7 @@ export function BookingConfirmClient({
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div className="min-h-screen bg-bg-primary text-white">
       {/* Overlap Warning Modal */}
       {showOverlapModal && overlappingBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
@@ -262,7 +262,7 @@ export function BookingConfirmClient({
                 disabled={cancellingOverlap}
                 className={cn(
                   "w-full py-3 rounded-xl text-sm font-medium transition",
-                  "bg-[#FF6B4A] hover:bg-[#FF6B4A]/90 text-white",
+                  "bg-accent hover:bg-accent/90 text-white",
                   "disabled:opacity-50 flex items-center justify-center gap-2"
                 )}
               >
@@ -301,11 +301,11 @@ export function BookingConfirmClient({
                 alt={teacher.display_name}
                 width={56}
                 height={56}
-                className="w-14 h-14 rounded-full object-cover border-2 border-[#FF6B4A]/30"
+                className="w-14 h-14 rounded-full object-cover border-2 border-accent/30"
               />
             ) : (
-              <div className="w-14 h-14 rounded-full bg-[#FF6B4A]/20 flex items-center justify-center">
-                <User className="w-7 h-7 text-[#FF6B4A]" />
+              <div className="w-14 h-14 rounded-full bg-accent/20 flex items-center justify-center">
+                <User className="w-7 h-7 text-accent" />
               </div>
             )}
             <div>
@@ -325,12 +325,12 @@ export function BookingConfirmClient({
 
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <Calendar className="w-5 h-5 text-[#FF6B4A]" />
+              <Calendar className="w-5 h-5 text-accent" />
               <span>{formattedDate}</span>
             </div>
 
             <div className="flex items-center gap-3">
-              <Clock className="w-5 h-5 text-[#FF6B4A]" />
+              <Clock className="w-5 h-5 text-accent" />
               <span>
                 {formattedStartTime} - {formattedEndTime} ({durationMinutes} min)
                 <span className="text-xs text-gray-500 ml-1">{tzShort}</span>
@@ -338,7 +338,7 @@ export function BookingConfirmClient({
             </div>
 
             <div className="flex items-center gap-3">
-              <Sparkles className="w-5 h-5 text-[#FF6B4A]" />
+              <Sparkles className="w-5 h-5 text-accent" />
               {isBeta ? (
                 <span className="text-green-400 font-medium">
                   Free during beta
@@ -367,7 +367,7 @@ export function BookingConfirmClient({
             className={cn(
               "w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3",
               "text-white placeholder-gray-500 resize-none",
-              "focus:outline-none focus:ring-2 focus:ring-[#FF6B4A]/50 focus:border-[#FF6B4A]/50",
+              "focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50",
               "transition"
             )}
           />
@@ -389,7 +389,7 @@ export function BookingConfirmClient({
           disabled={isLoading}
           className={cn(
             "w-full py-4 rounded-xl font-semibold text-lg transition",
-            "bg-[#FF6B4A] hover:bg-[#FF6B4A]/90 text-white",
+            "bg-accent hover:bg-accent/90 text-white",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             "flex items-center justify-center gap-2"
           )}
